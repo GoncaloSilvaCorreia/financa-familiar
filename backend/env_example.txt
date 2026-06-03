@@ -1,0 +1,16 @@
+PORT=3001
+NODE_ENV=development
+
+# Base de dados PostgreSQL
+DB_HOST=localhost
+DB_PORT=5432
+DB_NAME=financa_familiar
+DB_USER=postgres
+DB_PASSWORD=a_tua_password
+
+# JWT (muda para uma string longa e aleatória em produção!)
+JWT_SECRET=muda_isto_para_producao_usa_algo_longo_e_aleatorio
+JWT_EXPIRES_IN=7d
+
+# CORS — origem do frontend
+CORS_ORIGIN=http://localhost:5173
