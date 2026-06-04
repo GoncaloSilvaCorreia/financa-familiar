@@ -9,7 +9,7 @@ const poupancasRoutes = require('./routes/poupancas');
 const veiculosRoutes = require('./routes/veiculos');
 const categoriasRoutes = require('./routes/categorias');
 const contasRoutes = require('./routes/contas');
-const rotasBanco = require('./routes/banco');
+const agregadoRoutes = require('./routes/agregado');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -22,8 +22,6 @@ app.use(cors({
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.post('/api/banco/webhook', rotasBanco);
-
 // Rotas
 app.use('/api/auth', authRoutes);
 app.use('/api/transacoes', transacoesRoutes);
@@ -32,7 +30,7 @@ app.use('/api/poupancas', poupancasRoutes);
 app.use('/api/veiculos', veiculosRoutes);
 app.use('/api/categorias', categoriasRoutes);
 app.use('/api/contas', contasRoutes);
-app.use('/api/banco', rotasBanco);
+app.use('/api/agregado', agregadoRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {

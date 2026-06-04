@@ -8,7 +8,7 @@ import Transacoes from './pages/Transacoes'
 import Prazos from './pages/Prazos'
 import Poupancas from './pages/Poupancas'
 import Veiculos from './pages/Veiculos'
-import ContasBancarias from './pages/ContasBancarias';
+import Definicoes from './pages/Definicoes'
 
 function RotaProtegida({ children }) {
   const { utilizador, loading } = useAuth()
@@ -38,9 +38,8 @@ export default function App() {
             <Route path="prazos" element={<Prazos />} />
             <Route path="poupancas" element={<Poupancas />} />
             <Route path="veiculos" element={<Veiculos />} />
+            <Route path="definicoes" element={<Definicoes />} />
           </Route>
-          <Route path="/contas-bancarias" element={<ContasBancarias />} />
-          <Route path="/contas-bancarias/callback" element={<ContasBancarias />} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>

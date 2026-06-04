@@ -2,7 +2,7 @@ import { Outlet, NavLink, useNavigate } from 'react-router-dom'
 import { useAuth } from '../../contexts/AuthContext'
 import {
   LayoutDashboard, ArrowLeftRight, PiggyBank,
-  CalendarClock, Car, LogOut
+  CalendarClock, Car, LogOut, Settings
 } from 'lucide-react'
 
 const navItems = [
@@ -11,6 +11,7 @@ const navItems = [
   { to: '/poupancas',  icon: PiggyBank,       label: 'Poupanças' },
   { to: '/prazos',     icon: CalendarClock,   label: 'Prazos fiscais' },
   { to: '/veiculos',   icon: Car,             label: 'Veículos' },
+  { to: '/definicoes', icon: Settings,        label: 'Definições' },
 ]
 
 export default function Layout() {

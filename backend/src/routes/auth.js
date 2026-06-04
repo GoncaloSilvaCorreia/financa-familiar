@@ -51,8 +51,18 @@ router.post('/registar',
         [nome, email, passwordHash, iniciais]
       );
 
+      // Cria agregado automaticamente
+      const { rows: [agregado] } = await db.query(
+        `INSERT INTO agregados (nome) VALUES ($1) RETURNING id`,
+        [`Agregado de ${nome.split(' ')[0]}`]
+      );
+      await db.query(
+        `INSERT INTO membros_agregado (agregado_id, utilizador_id, papel) VALUES ($1, $2, 'admin')`,
+        [agregado.id, utilizador.id]
+      );
+
       // Cria categorias padrão para o novo utilizador
-      await criarCategoriasPadrao(utilizador.id);
+      await criarCategoriasPadrao(utilizador.id, agregado.id);
 
       // Gera token
       const token = gerarToken(utilizador);
@@ -142,7 +152,7 @@ function gerarToken(utilizador) {
   );
 }
 
-async function criarCategoriasPadrao(utilizadorId) {
+async function criarCategoriasPadrao(utilizadorId, agregadoId) {
   const categorias = [
     { nome: 'Alimentação',  icone: '🛒', cor: '#3B8BD4', tipo: 'gasto' },
     { nome: 'Habitação',    icone: '🏠', cor: '#1D9E75', tipo: 'gasto' },
@@ -158,9 +168,9 @@ async function criarCategoriasPadrao(utilizadorId) {
 
   for (const cat of categorias) {
     await db.query(
-      `INSERT INTO categorias (utilizador_id, nome, icone, cor, tipo)
-       VALUES ($1, $2, $3, $4, $5)`,
-      [utilizadorId, cat.nome, cat.icone, cat.cor, cat.tipo]
+      `INSERT INTO categorias (utilizador_id, agregado_id, criado_por, nome, icone, cor, tipo)
+       VALUES ($1, $2, $1, $3, $4, $5, $6)`,
+      [utilizadorId, agregadoId || null, cat.nome, cat.icone, cat.cor, cat.tipo]
     );
   }
 }
