@@ -98,19 +98,25 @@ router.post('/login',
       );
 
       if (rows.length === 0) {
-        return res.status(401).json({ erro: 'Email ou password incorretos.' });
+        // Email não existe — diz-nos qual o campo para o frontend destacar
+        return res.status(401).json({
+          erro: 'Este email não está registado.',
+          campo: 'email'
+        });
       }
 
       const utilizador = rows[0];
       const passwordCorreta = await bcrypt.compare(password, utilizador.password_hash);
 
       if (!passwordCorreta) {
-        return res.status(401).json({ erro: 'Email ou password incorretos.' });
+        // Password errada — campo específico
+        return res.status(401).json({
+          erro: 'Password incorreta.',
+          campo: 'password'
+        });
       }
 
       const token = gerarToken(utilizador);
-
-      // Não devolver o hash da password
       delete utilizador.password_hash;
 
       res.json({ token, utilizador });

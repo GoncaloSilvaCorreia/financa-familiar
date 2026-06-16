@@ -6,18 +6,35 @@ import api from '../utils/api'
 export default function Login() {
   const { login } = useAuth()
   const [form, setForm] = useState({ email: '', password: '' })
-  const [erro, setErro] = useState('')
+  const [erros, setErros] = useState({}) // { email: '...', password: '...', geral: '...' }
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e) {
     e.preventDefault()
-    setErro('')
+    setErros({})
     setLoading(true)
     try {
       const res = await api.post('/auth/login', form)
       login(res.data.token, res.data.utilizador)
     } catch (err) {
-      setErro(err.response?.data?.erro || 'Erro ao fazer login.')
+      const msg = err.response?.data?.erro || ''
+      if (err.response?.status === 404 || msg.toLowerCase().includes('email')) {
+        setErros({ email: 'Este email não está registado.' })
+      } else if (err.response?.status === 401) {
+        // Distinguir: email não encontrado vs password errada
+        // O backend devolve a mesma mensagem por segurança, mas podemos diferenciar
+        // com um campo extra que vamos adicionar ao backend
+        if (err.response?.data?.campo === 'password') {
+          setErros({ password: 'Password incorreta.' })
+        } else if (err.response?.data?.campo === 'email') {
+          setErros({ email: 'Este email não está registado.' })
+        } else {
+          // fallback genérico
+          setErros({ geral: 'Email ou password incorretos.' })
+        }
+      } else {
+        setErros({ geral: err.response?.data?.erro || 'Erro ao fazer login.' })
+      }
     } finally {
       setLoading(false)
     }
@@ -28,7 +45,7 @@ export default function Login() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="text-3xl mb-2"></div>
+          <div className="text-3xl mb-2">🏠</div>
           <h1 className="text-xl font-semibold text-gray-900">Finança Familiar</h1>
           <p className="text-sm text-gray-500 mt-1">Entra na tua conta</p>
         </div>
@@ -42,9 +59,21 @@ export default function Login() {
                 required
                 placeholder="exemplo@email.com"
                 value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                onChange={e => {
+                  setForm({ ...form, email: e.target.value })
+                  if (erros.email) setErros(prev => ({ ...prev, email: '' }))
+                }}
+                className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
+                  erros.email
+                    ? 'border-red-300 focus:ring-red-400 bg-red-50'
+                    : 'border-gray-200 focus:ring-blue-500'
+                }`}
               />
+              {erros.email && (
+                <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+                  <span>⚠</span> {erros.email}
+                </p>
+              )}
             </div>
 
             <div>
@@ -54,13 +83,27 @@ export default function Login() {
                 required
                 placeholder="••••••••"
                 value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                onChange={e => {
+                  setForm({ ...form, password: e.target.value })
+                  if (erros.password) setErros(prev => ({ ...prev, password: '' }))
+                }}
+                className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
+                  erros.password
+                    ? 'border-red-300 focus:ring-red-400 bg-red-50'
+                    : 'border-gray-200 focus:ring-blue-500'
+                }`}
               />
+              {erros.password && (
+                <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1">
+                  <span>⚠</span> {erros.password}
+                </p>
+              )}
             </div>
 
-            {erro && (
-              <div className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{erro}</div>
+            {erros.geral && (
+              <div className="text-xs text-red-500 bg-red-50 border border-red-100 px-3 py-2 rounded-lg">
+                {erros.geral}
+              </div>
             )}
 
             <button

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, Pencil, Trash2, X, Check } from 'lucide-react'
+import { Plus, Pencil, Trash2, X, FileText, Calendar, CreditCard, Tag, StickyNote } from 'lucide-react'
 import api from '../utils/api'
 
 const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez']
@@ -25,6 +25,116 @@ function Modal({ titulo, onClose, children }) {
           </button>
         </div>
         <div className="p-5">{children}</div>
+      </div>
+    </div>
+  )
+}
+
+// ─── Modal de Detalhes ────────────────────────────────────────────────────────
+function ModalDetalhes({ transacao, onClose, onEditar, onApagar }) {
+  const tipoInfo = TIPOS.find(t => t.value === transacao.tipo)
+
+  return (
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+        {/* Header com valor em destaque */}
+        <div className={`rounded-t-2xl px-5 py-5 ${
+          transacao.tipo === 'receita'
+            ? 'bg-emerald-50'
+            : transacao.tipo === 'transferencia'
+            ? 'bg-blue-50'
+            : 'bg-red-50'
+        }`}>
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-white/70 flex items-center justify-center text-xl shadow-sm">
+                {transacao.categoria_icone || '💰'}
+              </div>
+              <div>
+                <p className="text-xs text-gray-500 font-medium">{tipoInfo?.label}</p>
+                <h2 className="text-sm font-semibold text-gray-900 mt-0.5">{transacao.descricao}</h2>
+              </div>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors mt-0.5">
+              <X size={17} />
+            </button>
+          </div>
+          <div className={`text-2xl font-bold mt-4 ${
+            transacao.tipo === 'receita'
+              ? 'text-emerald-600'
+              : transacao.tipo === 'transferencia'
+              ? 'text-blue-600'
+              : 'text-red-500'
+          }`}>
+            {transacao.tipo === 'receita' ? '+' : '-'}{moeda(transacao.valor)}
+          </div>
+        </div>
+
+        {/* Detalhes */}
+        <div className="p-5 flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <Calendar size={14} className="text-gray-400 flex-shrink-0" />
+            <div>
+              <p className="text-xs text-gray-400">Data</p>
+              <p className="text-sm text-gray-700 font-medium">
+                {new Date(transacao.data).toLocaleDateString('pt-PT', {
+                  weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+                })}
+              </p>
+            </div>
+          </div>
+
+          {transacao.categoria_nome && (
+            <div className="flex items-center gap-3">
+              <Tag size={14} className="text-gray-400 flex-shrink-0" />
+              <div>
+                <p className="text-xs text-gray-400">Categoria</p>
+                <p className="text-sm text-gray-700 font-medium">
+                  {transacao.categoria_icone} {transacao.categoria_nome}
+                </p>
+              </div>
+            </div>
+          )}
+
+          {transacao.conta_nome && (
+            <div className="flex items-center gap-3">
+              <CreditCard size={14} className="text-gray-400 flex-shrink-0" />
+              <div>
+                <p className="text-xs text-gray-400">Conta</p>
+                <p className="text-sm text-gray-700 font-medium">{transacao.conta_nome}</p>
+              </div>
+            </div>
+          )}
+
+          {transacao.notas && (
+            <div className="flex items-start gap-3">
+              <StickyNote size={14} className="text-gray-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="text-xs text-gray-400">Notas</p>
+                <p className="text-sm text-gray-600 mt-0.5 leading-relaxed">{transacao.notas}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Separador */}
+          <div className="border-t border-gray-100 mt-1" />
+
+          {/* Ações */}
+          <div className="flex gap-2">
+            <button
+              onClick={() => { onClose(); onApagar(transacao) }}
+              className="flex-1 py-2 text-xs text-red-400 border border-red-100 rounded-lg hover:bg-red-50 transition font-medium"
+            >
+              Apagar
+            </button>
+            <button
+              onClick={() => { onClose(); onEditar(transacao) }}
+              className="flex-1 py-2 text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium"
+            >
+              Editar
+            </button>
+          </div>
+        </div>
       </div>
     </div>
   )
@@ -175,7 +285,8 @@ export default function Transacoes() {
   const [categorias, setCategorias] = useState([])
   const [contas, setContas] = useState([])
   const [loading, setLoading] = useState(true)
-  const [modal, setModal] = useState(null) // null | 'criar' | transacao
+  const [modal, setModal] = useState(null)       // null | 'criar' | transacao (editar)
+  const [aVer, setAVer] = useState(null)         // transacao para ver detalhes
   const [aApagar, setAApagar] = useState(null)
 
   async function carregar() {
@@ -278,13 +389,24 @@ export default function Transacoes() {
             </thead>
             <tbody>
               {transacoes.map((t, i) => (
-                <tr key={t.id} className={`border-b border-gray-50 hover:bg-gray-50/50 transition-colors ${i === transacoes.length - 1 ? 'border-0' : ''}`}>
+                <tr
+                  key={t.id}
+                  onClick={() => setAVer(t)}
+                  className={`border-b border-gray-50 hover:bg-gray-50/70 transition-colors cursor-pointer ${i === transacoes.length - 1 ? 'border-0' : ''}`}
+                >
                   <td className="px-5 py-3">
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-lg bg-gray-50 flex items-center justify-center text-sm flex-shrink-0">
                         {t.categoria_icone || '💰'}
                       </div>
-                      <span className="text-sm text-gray-800 font-medium">{t.descricao}</span>
+                      <div>
+                        <span className="text-sm text-gray-800 font-medium">{t.descricao}</span>
+                        {t.notas && (
+                          <span className="ml-2 inline-flex items-center" title={t.notas}>
+                            <FileText size={11} className="text-gray-300" />
+                          </span>
+                        )}
+                      </div>
                     </div>
                   </td>
                   <td className="px-3 py-3">
@@ -301,7 +423,7 @@ export default function Transacoes() {
                     </span>
                   </td>
                   <td className="px-3 py-3">
-                    <div className="flex items-center gap-1">
+                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                       <button onClick={() => setModal(t)}
                         className="p-1.5 text-gray-300 hover:text-blue-500 transition-colors rounded-lg hover:bg-blue-50">
                         <Pencil size={13} />
@@ -318,6 +440,16 @@ export default function Transacoes() {
           </table>
         )}
       </div>
+
+      {/* Modal de Detalhes */}
+      {aVer && (
+        <ModalDetalhes
+          transacao={aVer}
+          onClose={() => setAVer(null)}
+          onEditar={(t) => setModal(t)}
+          onApagar={(t) => setAApagar(t)}
+        />
+      )}
 
       {/* Modal criar/editar */}
       {modal && (
