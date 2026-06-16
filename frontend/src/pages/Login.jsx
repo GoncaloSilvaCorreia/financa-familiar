@@ -29,7 +29,7 @@ export default function Login() {
         {/* Logo */}
         <div className="text-center mb-8">
           <div className="text-3xl mb-2"></div>
-          <h1 className="text-xl font-semibold text-gray-900">FinançaFamiliar</h1>
+          <h1 className="text-xl font-semibold text-gray-900">Finança Familiar</h1>
           <p className="text-sm text-gray-500 mt-1">Entra na tua conta</p>
         </div>
 
@@ -82,7 +82,7 @@ export default function Login() {
             <p className="text-center text-xs text-gray-400 mb-2">Conta de demonstração</p>
             <button
               type="button"
-              onClick={() => setForm({ email: 'demo@financa.pt', password: 'demo1234' })}
+              onClick={() => setForm({ email: 'goncalo@example.com', password: 'password123' })}
               className="w-full py-2 text-xs text-gray-500 border border-gray-200 rounded-lg hover:bg-gray-50 transition"
             >
               Preencher com dados demo
