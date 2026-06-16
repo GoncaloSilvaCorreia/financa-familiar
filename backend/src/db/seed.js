@@ -1,66 +1,39 @@
-/**
- * SEED COMPLETO — FinançaFamiliar
- * Gera dados realistas e variados para demonstração da plataforma.
- *
- * USO:
- *   cd backend
- *   node src/db/seed_completo.js
- *
- * ATENÇÃO: Apaga todos os dados existentes antes de inserir os novos.
- */
-
 require("dotenv").config();
 const { Pool } = require("pg");
 const bcrypt = require("bcrypt");
 
-const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
-});
-
-// ─── Helpers ────────────────────────────────────────────────────────────────
-
+const pool = new Pool({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
 const rand = (min, max) => Math.random() * (max - min) + min;
 const randInt = (min, max) => Math.floor(rand(min, max + 1));
 const pick = (arr) => arr[randInt(0, arr.length - 1)];
 const fmt = (n) => parseFloat(n.toFixed(2));
 
-// Gera uma data aleatória entre os últimos N dias e hoje
 function randomDate(daysBack = 180) {
-  const d = new Date();
-  d.setDate(d.getDate() - randInt(0, daysBack));
+  const d = new Date(); d.setDate(d.getDate() - randInt(0, daysBack));
   return d.toISOString().split("T")[0];
 }
-
-// Próxima ocorrência mensal (dia fixo)
-function nextMonthlyDate(day, offset = 0) {
-  const d = new Date();
-  d.setMonth(d.getMonth() + offset);
-  d.setDate(day);
+function monthDate(day, offsetMonths = 0) {
+  const d = new Date(); d.setMonth(d.getMonth() + offsetMonths); d.setDate(day);
   return d.toISOString().split("T")[0];
 }
-
-// ─── Dados de referência ─────────────────────────────────────────────────────
 
 const CATEGORIAS = [
-  // Despesa
-  { nome: "Habitação",        tipo: "despesa", icone: "🏠", cor: "#EF4444" },
-  { nome: "Alimentação",      tipo: "despesa", icone: "🛒", cor: "#F97316" },
-  { nome: "Transportes",      tipo: "despesa", icone: "🚗", cor: "#EAB308" },
-  { nome: "Saúde",            tipo: "despesa", icone: "💊", cor: "#EC4899" },
-  { nome: "Educação",         tipo: "despesa", icone: "📚", cor: "#8B5CF6" },
-  { nome: "Lazer",            tipo: "despesa", icone: "🎬", cor: "#06B6D4" },
-  { nome: "Vestuário",        tipo: "despesa", icone: "👕", cor: "#84CC16" },
-  { nome: "Telecomunicações", tipo: "despesa", icone: "📱", cor: "#14B8A6" },
-  { nome: "Seguros",          tipo: "despesa", icone: "🛡️", cor: "#6366F1" },
-  { nome: "Restaurantes",     tipo: "despesa", icone: "🍽️", cor: "#F43F5E" },
-  { nome: "Supermercado",     tipo: "despesa", icone: "🏪", cor: "#FB923C" },
-  { nome: "Combustível",      tipo: "despesa", icone: "⛽", cor: "#FBBF24" },
-  { nome: "Higiene & Beleza", tipo: "despesa", icone: "🧴", cor: "#A78BFA" },
-  { nome: "Animais",          tipo: "despesa", icone: "🐾", cor: "#34D399" },
-  { nome: "Poupança/Invest.", tipo: "despesa", icone: "💰", cor: "#10B981" },
-  // Receita
-  { nome: "Salário",          tipo: "receita", icone: "💼", cor: "#22C55E" },
+  { nome: "Habitacao",        tipo: "gasto",   icone: "🏠", cor: "#EF4444" },
+  { nome: "Alimentacao",      tipo: "gasto",   icone: "🛒", cor: "#F97316" },
+  { nome: "Transportes",      tipo: "gasto",   icone: "🚗", cor: "#EAB308" },
+  { nome: "Saude",            tipo: "gasto",   icone: "💊", cor: "#EC4899" },
+  { nome: "Educacao",         tipo: "gasto",   icone: "📚", cor: "#8B5CF6" },
+  { nome: "Lazer",            tipo: "gasto",   icone: "🎬", cor: "#06B6D4" },
+  { nome: "Vestuario",        tipo: "gasto",   icone: "👕", cor: "#84CC16" },
+  { nome: "Telecomunicacoes", tipo: "gasto",   icone: "📱", cor: "#14B8A6" },
+  { nome: "Seguros",          tipo: "gasto",   icone: "🛡️", cor: "#6366F1" },
+  { nome: "Restaurantes",     tipo: "gasto",   icone: "🍽️", cor: "#F43F5E" },
+  { nome: "Supermercado",     tipo: "gasto",   icone: "🏪", cor: "#FB923C" },
+  { nome: "Combustivel",      tipo: "gasto",   icone: "⛽", cor: "#FBBF24" },
+  { nome: "Higiene e Beleza", tipo: "gasto",   icone: "🧴", cor: "#A78BFA" },
+  { nome: "Animais",          tipo: "gasto",   icone: "🐾", cor: "#34D399" },
+  { nome: "Poupanca",         tipo: "poupanca",icone: "💰", cor: "#10B981" },
+  { nome: "Salario",          tipo: "receita", icone: "💼", cor: "#22C55E" },
   { nome: "Freelance",        tipo: "receita", icone: "💻", cor: "#3B82F6" },
   { nome: "Rendas",           tipo: "receita", icone: "🏢", cor: "#0EA5E9" },
   { nome: "Dividendos",       tipo: "receita", icone: "📈", cor: "#10B981" },
@@ -68,458 +41,124 @@ const CATEGORIAS = [
 ];
 
 const CONTAS = [
-  { nome: "Conta Ordenado",       tipo: "corrente",  banco: "Millennium BCP",  saldo: 3240.55,  cor: "#3B82F6" },
-  { nome: "Conta Poupança",       tipo: "poupanca",  banco: "Millennium BCP",  saldo: 12800.00, cor: "#10B981" },
-  { nome: "Conta Conjunta",       tipo: "corrente",  banco: "CGD",             saldo: 870.20,   cor: "#8B5CF6" },
-  { nome: "Cartão Crédito",       tipo: "credito",   banco: "Santander",       saldo: -450.30,  cor: "#EF4444" },
-  { nome: "Conta Investimento",   tipo: "investimento", banco: "DeGiro",       saldo: 8500.00,  cor: "#F59E0B" },
-];
-
-const VEICULOS_DATA = [
-  {
-    marca: "Volkswagen", modelo: "Golf 1.0 TSI",
-    matricula: "AA-12-BB", ano: 2019, combustivel: "gasolina",
-    quilometros: 62400, ultima_inspecao: "2023-04-15", proxima_inspecao: "2025-04-15",
-    seguro_validade: nextMonthlyDate(30, 2), seguro_empresa: "Fidelidade",
-    notas: "Revisão feita em Março 2024. Pastilhas travões substituídas.",
-  },
-  {
-    marca: "Renault", modelo: "Clio E-Tech Hybrid",
-    matricula: "CC-34-DD", ano: 2022, combustivel: "hibrido",
-    quilometros: 28100, ultima_inspecao: "2024-01-10", proxima_inspecao: "2026-01-10",
-    seguro_validade: nextMonthlyDate(15, 4), seguro_empresa: "Tranquilidade",
-    notas: "Ainda em garantia até 2025.",
-  },
+  { nome: "Conta Ordenado",    tipo: "conta_corrente", saldo: 3240.55,  cor: "#3B82F6", icone: "🏦" },
+  { nome: "Conta Poupanca",    tipo: "poupanca",       saldo: 12800.00, cor: "#10B981", icone: "💰" },
+  { nome: "Conta Conjunta",    tipo: "conta_corrente", saldo: 870.20,   cor: "#8B5CF6", icone: "👥" },
+  { nome: "Cartao de Credito", tipo: "cartao_credito", saldo: -450.30,  cor: "#EF4444", icone: "💳" },
+  { nome: "Dinheiro",          tipo: "dinheiro",       saldo: 320.00,   cor: "#F59E0B", icone: "💵" },
 ];
 
 const PRAZOS_DATA = [
-  // Faturas recorrentes
-  { descricao: "Renda de Casa",          valor: 850.00,  data_vencimento: nextMonthlyDate(1,  1), recorrente: true,  pago: false, categoria: "Habitação" },
-  { descricao: "Seguro Habitação",       valor: 32.50,   data_vencimento: nextMonthlyDate(5,  1), recorrente: true,  pago: false, categoria: "Seguros" },
-  { descricao: "Seguro Saúde Família",   valor: 78.00,   data_vencimento: nextMonthlyDate(8,  1), recorrente: true,  pago: false, categoria: "Seguros" },
-  { descricao: "NOS — Internet + TV",    valor: 49.99,   data_vencimento: nextMonthlyDate(12, 1), recorrente: true,  pago: false, categoria: "Telecomunicações" },
-  { descricao: "MEO Telemóvel",          valor: 22.99,   data_vencimento: nextMonthlyDate(15, 1), recorrente: true,  pago: false, categoria: "Telecomunicações" },
-  { descricao: "Ginásio Holmes Place",   valor: 39.90,   data_vencimento: nextMonthlyDate(1,  1), recorrente: true,  pago: false, categoria: "Saúde" },
-  { descricao: "Spotify Família",        valor: 16.99,   data_vencimento: nextMonthlyDate(20, 1), recorrente: true,  pago: false, categoria: "Lazer" },
-  { descricao: "Netflix",                valor: 17.99,   data_vencimento: nextMonthlyDate(22, 1), recorrente: true,  pago: false, categoria: "Lazer" },
-  { descricao: "Seguro Auto Golf",       valor: 52.30,   data_vencimento: nextMonthlyDate(28, 2), recorrente: true,  pago: false, categoria: "Seguros" },
-  { descricao: "Seguro Auto Clio",       valor: 44.80,   data_vencimento: nextMonthlyDate(15, 4), recorrente: true,  pago: false, categoria: "Seguros" },
-  // Já pagos este mês
-  { descricao: "Água (EPAL)",            valor: 18.40,   data_vencimento: nextMonthlyDate(10, 0), recorrente: true,  pago: true,  categoria: "Habitação" },
-  { descricao: "Eletricidade (EDP)",     valor: 67.20,   data_vencimento: nextMonthlyDate(7,  0), recorrente: true,  pago: true,  categoria: "Habitação" },
-  { descricao: "Condomínio",             valor: 55.00,   data_vencimento: nextMonthlyDate(2,  0), recorrente: true,  pago: true,  categoria: "Habitação" },
-  // Próximos não recorrentes
-  { descricao: "Inspeção Automóvel Golf",valor: 35.00,   data_vencimento: "2025-04-15",           recorrente: false, pago: false, categoria: "Transportes" },
-  { descricao: "Renovação Carta Verde",  valor: 14.50,   data_vencimento: nextMonthlyDate(1,  3), recorrente: false, pago: false, categoria: "Seguros" },
-  { descricao: "IRS — Pagamento",        valor: 320.00,  data_vencimento: "2024-08-31",           recorrente: false, pago: true,  categoria: "Outros" },
+  { nome: "Renda de Casa",        tipo: "fatura",  valor_estimado: 850.00, data_vencimento: monthDate(1,1),  recorrente: true,  recorrencia_meses: 1,  pago: false },
+  { nome: "Seguro Habitacao",     tipo: "seguro",  valor_estimado: 32.50,  data_vencimento: monthDate(5,1),  recorrente: true,  recorrencia_meses: 1,  pago: false },
+  { nome: "Seguro Saude Familia", tipo: "seguro",  valor_estimado: 78.00,  data_vencimento: monthDate(8,1),  recorrente: true,  recorrencia_meses: 1,  pago: false },
+  { nome: "NOS Internet e TV",    tipo: "fatura",  valor_estimado: 49.99,  data_vencimento: monthDate(12,1), recorrente: true,  recorrencia_meses: 1,  pago: false },
+  { nome: "MEO Telemovel",        tipo: "fatura",  valor_estimado: 22.99,  data_vencimento: monthDate(15,1), recorrente: true,  recorrencia_meses: 1,  pago: false },
+  { nome: "Ginasio Holmes Place", tipo: "fatura",  valor_estimado: 39.90,  data_vencimento: monthDate(1,1),  recorrente: true,  recorrencia_meses: 1,  pago: false },
+  { nome: "Spotify Familia",      tipo: "fatura",  valor_estimado: 16.99,  data_vencimento: monthDate(20,1), recorrente: true,  recorrencia_meses: 1,  pago: false },
+  { nome: "Netflix",              tipo: "fatura",  valor_estimado: 17.99,  data_vencimento: monthDate(22,1), recorrente: true,  recorrencia_meses: 1,  pago: false },
+  { nome: "Agua EPAL",            tipo: "fatura",  valor_estimado: 18.40,  data_vencimento: monthDate(10,0), recorrente: true,  recorrencia_meses: 1,  pago: true  },
+  { nome: "Eletricidade EDP",     tipo: "fatura",  valor_estimado: 67.20,  data_vencimento: monthDate(7,0),  recorrente: true,  recorrencia_meses: 1,  pago: true  },
+  { nome: "Condominio",           tipo: "fatura",  valor_estimado: 55.00,  data_vencimento: monthDate(2,0),  recorrente: true,  recorrencia_meses: 1,  pago: true  },
+  { nome: "IRS Pagamento",        tipo: "irs", valor_estimado: 320.00, data_vencimento: "2024-08-31",    recorrente: false, recorrencia_meses: null,pago: true  },
+  { nome: "Renovacao Carta Verde",tipo: "outro",   valor_estimado: 14.50,  data_vencimento: monthDate(1,3),  recorrente: false, recorrencia_meses: null,pago: false },
 ];
 
 const POUPANCAS_DATA = [
-  { nome: "Fundo de Emergência",   valor_objetivo: 15000, valor_atual:  9800,  data_objetivo: "2025-12-31", descricao: "6 meses de despesas. Prioridade máxima." },
-  { nome: "Férias Verão 2025",     valor_objetivo:  3500, valor_atual:  2100,  data_objetivo: "2025-06-01", descricao: "Algarve, 2 semanas. Incluir voos + alojamento." },
-  { nome: "Portátil Novo",         valor_objetivo:  1200, valor_atual:   750,  data_objetivo: "2025-03-01", descricao: "MacBook Air M3. Trabalho + pessoal." },
-  { nome: "Carro Elétrico",        valor_objetivo: 8000,  valor_atual:  1500,  data_objetivo: "2027-01-01", descricao: "Entrada para leasing de carro elétrico." },
-  { nome: "Obras Casa de Banho",   valor_objetivo:  5500, valor_atual:  3200,  data_objetivo: "2025-09-01", descricao: "Remodelação completa — orçamento recebido." },
-  { nome: "Fundo Educação Filhos", valor_objetivo: 20000, valor_atual:  4300,  data_objetivo: "2030-09-01", descricao: "Universidade / formação futura." },
+  { nome: "Fundo de Emergencia",   valor_meta: 15000, valor_atual: 9800, data_alvo: "2025-12-31", icone: "🛡️", cor: "#EF4444", descricao: "6 meses de despesas. Prioridade maxima." },
+  { nome: "Ferias Verao 2025",     valor_meta:  3500, valor_atual: 2100, data_alvo: "2025-06-01", icone: "🏖️", cor: "#06B6D4", descricao: "Algarve, 2 semanas. Voos + alojamento." },
+  { nome: "Portatil Novo",         valor_meta:  1200, valor_atual:  750, data_alvo: "2025-03-01", icone: "💻", cor: "#8B5CF6", descricao: "MacBook Air M3." },
+  { nome: "Carro Eletrico",        valor_meta:  8000, valor_atual: 1500, data_alvo: "2027-01-01", icone: "🚗", cor: "#10B981", descricao: "Entrada para leasing de carro eletrico." },
+  { nome: "Obras Casa de Banho",   valor_meta:  5500, valor_atual: 3200, data_alvo: "2025-09-01", icone: "🔨", cor: "#F59E0B", descricao: "Remodelacao completa." },
+  { nome: "Fundo Educacao Filhos", valor_meta: 20000, valor_atual: 4300, data_alvo: "2030-09-01", icone: "📚", cor: "#3B82F6", descricao: "Universidade e formacao futura." },
 ];
 
-// ─── Transações — gerador ────────────────────────────────────────────────────
+function gerarTransacoes(catMap, contaIds, userId, agregadoId) {
+  const t = [];
+  const add = (obj) => t.push({ utilizador_id: userId, agregado_id: agregadoId, notas: null, ...obj });
 
-function gerarTransacoes(catMap, contaIds) {
-  const transacoes = [];
-
-  // Salários fixos — últimos 6 meses
   for (let m = 0; m < 6; m++) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - m);
-    d.setDate(25);
-    transacoes.push({
-      descricao: "Salário — Gonçalo",
-      valor: fmt(2450 + rand(-50, 50)),
-      tipo: "receita",
-      data: d.toISOString().split("T")[0],
-      categoria_id: catMap["Salário"],
-      conta_id: pick(contaIds),
-      notas: `Ordenado ${d.toLocaleString("pt-PT", { month: "long" })}`,
-    });
-    const d2 = new Date(d);
-    d2.setDate(26);
-    transacoes.push({
-      descricao: "Salário — Ana",
-      valor: fmt(1980 + rand(-30, 30)),
-      tipo: "receita",
-      data: d2.toISOString().split("T")[0],
-      categoria_id: catMap["Salário"],
-      conta_id: pick(contaIds),
-      notas: `Ordenado ${d2.toLocaleString("pt-PT", { month: "long" })}`,
-    });
+    const d1 = new Date(); d1.setMonth(d1.getMonth()-m); d1.setDate(25);
+    add({ descricao:"Salario Goncalo", valor:fmt(2450+rand(-50,50)), tipo:"receita", data:d1.toISOString().split("T")[0], categoria_id:catMap["Salario"], conta_id:pick(contaIds) });
+    const d2 = new Date(d1); d2.setDate(26);
+    add({ descricao:"Salario Ana", valor:fmt(1980+rand(-30,30)), tipo:"receita", data:d2.toISOString().split("T")[0], categoria_id:catMap["Salario"], conta_id:pick(contaIds) });
   }
-
-  // Rendas recebidas (apartamento alugado)
   for (let m = 0; m < 6; m++) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - m);
-    d.setDate(1);
-    transacoes.push({
-      descricao: "Renda Apto. Setúbal",
-      valor: 620,
-      tipo: "receita",
-      data: d.toISOString().split("T")[0],
-      categoria_id: catMap["Rendas"],
-      conta_id: pick(contaIds),
-      notas: "Transferência do inquilino",
+    const d = new Date(); d.setMonth(d.getMonth()-m); d.setDate(1);
+    add({ descricao:"Renda Apto Setubal", valor:620, tipo:"receita", data:d.toISOString().split("T")[0], categoria_id:catMap["Rendas"], conta_id:pick(contaIds) });
+  }
+  [["Projeto Web Cliente A",800],["Consultoria Marketing",350],["Logotipo e Branding",450],["Reparacao PC",80],["Formacao Excel",300]].forEach(([desc,val])=>{
+    add({ descricao:desc, valor:fmt(val+rand(-20,20)), tipo:"receita", data:randomDate(150), categoria_id:catMap["Freelance"], conta_id:pick(contaIds) });
+  });
+  add({ descricao:"Dividendos ETF VWCE", valor:142.30, tipo:"receita", data:randomDate(90), categoria_id:catMap["Dividendos"], conta_id:pick(contaIds) });
+  add({ descricao:"Juros Conta Poupanca", valor:38.60, tipo:"receita", data:randomDate(60), categoria_id:catMap["Dividendos"], conta_id:pick(contaIds) });
+
+  const supers = ["Continente","Pingo Doce","Lidl","Aldi","Mercadona"];
+  for (let i=0;i<26;i++){
+    const d=new Date(); d.setDate(d.getDate()-i*7);
+    add({ descricao:`Compras ${pick(supers)}`, valor:fmt(rand(55,160)), tipo:"gasto", data:d.toISOString().split("T")[0], categoria_id:pick([catMap["Supermercado"],catMap["Alimentacao"]]), conta_id:pick(contaIds) });
+  }
+  ["Tasca do Joao","McDonalds","Nandos","Pasta e Basta","Sushi Porto","Tasco da Avo","Pizzeria Italiana","Hamburguer do Bairro","Bifanas do Ze","Marisqueira Central"].forEach(desc=>{
+    add({ descricao:desc, valor:fmt(rand(12,85)), tipo:"gasto", data:randomDate(180), categoria_id:catMap["Restaurantes"], conta_id:pick(contaIds) });
+  });
+  for (let m=0;m<6;m++) for(let n=0;n<randInt(2,4);n++){
+    const d=new Date(); d.setMonth(d.getMonth()-m); d.setDate(randInt(1,28));
+    add({ descricao:`Combustivel ${pick(["BP","Galp","Repsol","Prio"])}`, valor:fmt(rand(45,80)), tipo:"gasto", data:d.toISOString().split("T")[0], categoria_id:catMap["Combustivel"], conta_id:pick(contaIds) });
+  }
+  for(let m=0;m<6;m++){
+    const d=new Date(); d.setMonth(d.getMonth()-m); d.setDate(12);
+    add({ descricao:"NOS Internet e TV", valor:49.99, tipo:"gasto", data:d.toISOString().split("T")[0], categoria_id:catMap["Telecomunicacoes"], conta_id:pick(contaIds) });
+    const d2=new Date(d); d2.setDate(15);
+    add({ descricao:"MEO Telemovel", valor:22.99, tipo:"gasto", data:d2.toISOString().split("T")[0], categoria_id:catMap["Telecomunicacoes"], conta_id:pick(contaIds) });
+  }
+  for(let m=0;m<6;m++){
+    const d=new Date(); d.setMonth(d.getMonth()-m);
+    [[1,"Renda de Casa",850],[7,"Eletricidade EDP",fmt(rand(55,90))],[10,"Agua EPAL",fmt(rand(14,25))],[2,"Condominio",55]].forEach(([day,desc,val])=>{
+      const dd=new Date(d); dd.setDate(day);
+      add({ descricao:desc, valor:val, tipo:"gasto", data:dd.toISOString().split("T")[0], categoria_id:catMap["Habitacao"], conta_id:pick(contaIds) });
     });
   }
-
-  // Freelance esporádico
-  const freelances = [
-    ["Projeto Web — Cliente A", 800],
-    ["Consultoria Marketing Digital", 350],
-    ["Logótipo + Branding", 450],
-    ["Reparação Computador Vizinho", 80],
-    ["Formação Excel — Empresa",  300],
-  ];
-  freelances.forEach(([desc, val]) => {
-    transacoes.push({
-      descricao: desc,
-      valor: fmt(val + rand(-20, 20)),
-      tipo: "receita",
-      data: randomDate(150),
-      categoria_id: catMap["Freelance"],
-      conta_id: pick(contaIds),
-      notas: "",
-    });
-  });
-
-  // Supermercado — semanal
-  const supermercados = ["Continente", "Pingo Doce", "Lidl", "Aldi", "Mercadona"];
-  for (let i = 0; i < 26; i++) {
-    const d = new Date();
-    d.setDate(d.getDate() - i * 7);
-    transacoes.push({
-      descricao: `Compras — ${pick(supermercados)}`,
-      valor: fmt(rand(55, 160)),
-      tipo: "despesa",
-      data: d.toISOString().split("T")[0],
-      categoria_id: pick([catMap["Supermercado"], catMap["Alimentação"]]),
-      conta_id: pick(contaIds),
-      notas: "",
+  for(let m=0;m<6;m++){
+    const d=new Date(); d.setMonth(d.getMonth()-m);
+    [[5,"Seguro Habitacao",32.5],[8,"Seguro Saude Familia",78]].forEach(([day,desc,val])=>{
+      const dd=new Date(d); dd.setDate(day);
+      add({ descricao:desc, valor:val, tipo:"gasto", data:dd.toISOString().split("T")[0], categoria_id:catMap["Seguros"], conta_id:pick(contaIds) });
     });
   }
-
-  // Restaurantes — quinzenal
-  const restaurantes = [
-    "Restaurante Tasca do João",
-    "McDonald's",
-    "Nando's",
-    "Pasta & Basta",
-    "Sushi Porto",
-    "Tasco da Avó",
-    "Pizzeria Italiana",
-    "Hamburguer do Bairro",
-  ];
-  for (let i = 0; i < 14; i++) {
-    transacoes.push({
-      descricao: pick(restaurantes),
-      valor: fmt(rand(12, 85)),
-      tipo: "despesa",
-      data: randomDate(180),
-      categoria_id: catMap["Restaurantes"],
-      conta_id: pick(contaIds),
-      notas: "",
-    });
+  [["Farmacia Saude",rand(8,45)],["Consulta Clinica Geral",25],["Dentista Limpeza",60],["Consulta Pediatra",30],["Analises Clinicas",18.5],["Ginasio Holmes Place",39.9],["Fisioterapia",35],["Oculos Lentes Novas",120]].forEach(([desc,val])=>{
+    add({ descricao:desc, valor:fmt(val), tipo:"gasto", data:randomDate(180), categoria_id:catMap["Saude"], conta_id:pick(contaIds) });
+  });
+  [["Livros Escolares",85],["Propinas Universidade",630],["Curso Online Udemy",14.99],["Material Escolar",42],["Explicacoes Matematica",80],["Livros FNAC",38]].forEach(([desc,val])=>{
+    add({ descricao:desc, valor:fmt(val), tipo:"gasto", data:randomDate(180), categoria_id:catMap["Educacao"], conta_id:pick(contaIds) });
+  });
+  [["Cinema NOS",rand(8,25)],["Concerto Musica ao Vivo",rand(25,60)],["Bowling com Amigos",rand(15,30)],["Bilhetes Futebol SLB",25],["Parque Aquatico",55],["Escape Room Lisboa",48],["Comboio Lisboa",22.5],["Airbnb FDS Sintra",130],["Museu Nacional",8],["Netflix",17.99],["Spotify Familia",16.99]].forEach(([desc,val])=>{
+    add({ descricao:desc, valor:fmt(val), tipo:"gasto", data:randomDate(180), categoria_id:catMap["Lazer"], conta_id:pick(contaIds) });
+  });
+  [["Zara Roupa Inverno",rand(60,150)],["HM Kids",rand(30,80)],["Salsa Jeans",rand(40,90)],["Decathlon Equipamento",rand(35,120)],["Sapataria Foreva",rand(40,110)]].forEach(([desc,val])=>{
+    add({ descricao:desc, valor:fmt(val), tipo:"gasto", data:randomDate(180), categoria_id:catMap["Vestuario"], conta_id:pick(contaIds) });
+  });
+  for(let i=0;i<6;i++) add({ descricao:"Passe Navegante", valor:40, tipo:"gasto", data:randomDate(180), categoria_id:catMap["Transportes"], conta_id:pick(contaIds) });
+  [["Uber Lisboa Aeroporto",rand(18,35)],["Bolt Centro",rand(8,15)],["Taxi FDS",rand(12,25)]].forEach(([desc,val])=>{
+    add({ descricao:desc, valor:fmt(val), tipo:"gasto", data:randomDate(120), categoria_id:catMap["Transportes"], conta_id:pick(contaIds) });
+  });
+  [["Cabeleireiro",45],["Perfumaria El Corte Ingles",65],["Farmacia Higiene",22],["Barbeiro",15]].forEach(([desc,val])=>{
+    add({ descricao:desc, valor:fmt(val), tipo:"gasto", data:randomDate(150), categoria_id:catMap["Higiene e Beleza"], conta_id:pick(contaIds) });
+  });
+  [["Racao Pedigree 15kg",38],["Veterinario Consulta",55],["Pet Shop Brinquedos",22],["Vacinas Anuais",75]].forEach(([desc,val])=>{
+    add({ descricao:desc, valor:fmt(val), tipo:"gasto", data:randomDate(180), categoria_id:catMap["Animais"], conta_id:pick(contaIds) });
+  });
+  for(let m=0;m<6;m++){
+    const d=new Date(); d.setMonth(d.getMonth()-m); d.setDate(27);
+    add({ descricao:"Transferencia Poupanca", valor:300, tipo:"gasto", data:d.toISOString().split("T")[0], categoria_id:catMap["Poupanca"], conta_id:pick(contaIds), notas:"Poupanca mensal programada" });
   }
-
-  // Combustível — mensal
-  for (let m = 0; m < 6; m++) {
-    for (let n = 0; n < randInt(2, 4); n++) {
-      const d = new Date();
-      d.setMonth(d.getMonth() - m);
-      d.setDate(randInt(1, 28));
-      transacoes.push({
-        descricao: "Combustível — " + pick(["BP", "Galp", "Repsol", "Prio"]),
-        valor: fmt(rand(45, 80)),
-        tipo: "despesa",
-        data: d.toISOString().split("T")[0],
-        categoria_id: catMap["Combustível"],
-        conta_id: pick(contaIds),
-        notas: "",
-      });
-    }
-  }
-
-  // Telecomunicações — mensal
-  for (let m = 0; m < 6; m++) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - m);
-    d.setDate(12);
-    transacoes.push({
-      descricao: "NOS — Internet + TV",
-      valor: 49.99,
-      tipo: "despesa",
-      data: d.toISOString().split("T")[0],
-      categoria_id: catMap["Telecomunicações"],
-      conta_id: pick(contaIds),
-    });
-    const d2 = new Date(d); d2.setDate(15);
-    transacoes.push({
-      descricao: "MEO Telemóvel",
-      valor: 22.99,
-      tipo: "despesa",
-      data: d2.toISOString().split("T")[0],
-      categoria_id: catMap["Telecomunicações"],
-      conta_id: pick(contaIds),
-    });
-  }
-
-  // Habitação
-  for (let m = 0; m < 6; m++) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - m);
-    d.setDate(1);
-    transacoes.push({
-      descricao: "Renda de Casa",
-      valor: 850,
-      tipo: "despesa",
-      data: d.toISOString().split("T")[0],
-      categoria_id: catMap["Habitação"],
-      conta_id: pick(contaIds),
-    });
-    const d2 = new Date(d); d2.setDate(7);
-    transacoes.push({
-      descricao: "Eletricidade — EDP",
-      valor: fmt(rand(55, 90)),
-      tipo: "despesa",
-      data: d2.toISOString().split("T")[0],
-      categoria_id: catMap["Habitação"],
-      conta_id: pick(contaIds),
-    });
-    const d3 = new Date(d); d3.setDate(10);
-    transacoes.push({
-      descricao: "Água — EPAL",
-      valor: fmt(rand(14, 25)),
-      tipo: "despesa",
-      data: d3.toISOString().split("T")[0],
-      categoria_id: catMap["Habitação"],
-      conta_id: pick(contaIds),
-    });
-    const d4 = new Date(d); d4.setDate(2);
-    transacoes.push({
-      descricao: "Condomínio",
-      valor: 55,
-      tipo: "despesa",
-      data: d4.toISOString().split("T")[0],
-      categoria_id: catMap["Habitação"],
-      conta_id: pick(contaIds),
-    });
-  }
-
-  // Saúde
-  const saude = [
-    ["Farmácia Saúde+", rand(8, 45)],
-    ["Consulta Clínica Geral", 25],
-    ["Dentista — Limpeza", 60],
-    ["Consulta Pediatra", 30],
-    ["Análises Clínicas", 18.5],
-    ["Ginásio Holmes Place", 39.9],
-    ["Fisioterapia", 35],
-    ["Óculos — Lentes novas", 120],
-  ];
-  saude.forEach(([desc, val]) => {
-    transacoes.push({
-      descricao: desc,
-      valor: fmt(val),
-      tipo: "despesa",
-      data: randomDate(180),
-      categoria_id: catMap["Saúde"],
-      conta_id: pick(contaIds),
-    });
-  });
-
-  // Educação
-  const educacao = [
-    ["Livros Escolares", 85],
-    ["Propinas Universidade", 630],
-    ["Curso Online — Udemy", 14.99],
-    ["Material Escolar", 42],
-    ["Explicações — Matemática", 80],
-    ["Livros — FNAC", 38],
-  ];
-  educacao.forEach(([desc, val]) => {
-    transacoes.push({
-      descricao: desc,
-      valor: fmt(val),
-      tipo: "despesa",
-      data: randomDate(180),
-      categoria_id: catMap["Educação"],
-      conta_id: pick(contaIds),
-    });
-  });
-
-  // Lazer
-  const lazer = [
-    ["Cinema NOS", rand(8, 25)],
-    ["Concerto — Música ao Vivo", rand(25, 60)],
-    ["Bowling com Amigos", rand(15, 30)],
-    ["Bilhetes Futebol — SLB", 25],
-    ["Parque Aquático", 55],
-    ["Escape Room Lisboa", 48],
-    ["Viagem Lisboa — Comboio", 22.5],
-    ["Airbnb — FDS Sintra", 130],
-    ["Museu Nacional", 8],
-    ["Paintball", 35],
-    ["Netflix", 17.99],
-    ["Spotify Família", 16.99],
-    ["Zona de Jogos Kids", 12],
-  ];
-  lazer.forEach(([desc, val]) => {
-    transacoes.push({
-      descricao: desc,
-      valor: fmt(val),
-      tipo: "despesa",
-      data: randomDate(180),
-      categoria_id: catMap["Lazer"],
-      conta_id: pick(contaIds),
-    });
-  });
-
-  // Vestuário
-  const vestuario = [
-    ["Zara — Roupa Inverno", rand(60, 150)],
-    ["H&M Kids", rand(30, 80)],
-    ["Salsa Jeans", rand(40, 90)],
-    ["Decathlon — Equipamento Desporto", rand(35, 120)],
-    ["Sapataria Foreva", rand(40, 110)],
-    ["Cortefiel — Casaco", rand(80, 200)],
-  ];
-  vestuario.forEach(([desc, val]) => {
-    transacoes.push({
-      descricao: desc,
-      valor: fmt(val),
-      tipo: "despesa",
-      data: randomDate(180),
-      categoria_id: catMap["Vestuário"],
-      conta_id: pick(contaIds),
-    });
-  });
-
-  // Transportes públicos
-  for (let i = 0; i < 6; i++) {
-    transacoes.push({
-      descricao: "Passe Andante / Navegante",
-      valor: 40,
-      tipo: "despesa",
-      data: randomDate(180),
-      categoria_id: catMap["Transportes"],
-      conta_id: pick(contaIds),
-    });
-  }
-  ["Uber Lisboa → Aeroporto", "Bolt Centro", "Táxi FDS"].forEach((desc) => {
-    transacoes.push({
-      descricao: desc,
-      valor: fmt(rand(8, 35)),
-      tipo: "despesa",
-      data: randomDate(120),
-      categoria_id: catMap["Transportes"],
-      conta_id: pick(contaIds),
-    });
-  });
-
-  // Higiene & Beleza
-  ["Cabeleireiro", "El Corte Inglés — Perfumaria", "Farmácia Higiene", "Waxing Studio", "Barbeiro"].forEach((desc) => {
-    transacoes.push({
-      descricao: desc,
-      valor: fmt(rand(10, 70)),
-      tipo: "despesa",
-      data: randomDate(150),
-      categoria_id: catMap["Higiene & Beleza"],
-      conta_id: pick(contaIds),
-    });
-  });
-
-  // Animais
-  ["Ração Pedigree — 15kg", "Veterinário — Consulta", "Pet Shop — Brinquedos", "Vacinas Anuais"].forEach((desc) => {
-    transacoes.push({
-      descricao: desc,
-      valor: fmt(rand(15, 80)),
-      tipo: "despesa",
-      data: randomDate(180),
-      categoria_id: catMap["Animais"],
-      conta_id: pick(contaIds),
-    });
-  });
-
-  // Seguros
-  for (let m = 0; m < 6; m++) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - m);
-    d.setDate(5);
-    transacoes.push({
-      descricao: "Seguro Habitação",
-      valor: 32.5,
-      tipo: "despesa",
-      data: d.toISOString().split("T")[0],
-      categoria_id: catMap["Seguros"],
-      conta_id: pick(contaIds),
-    });
-    const d2 = new Date(d); d2.setDate(8);
-    transacoes.push({
-      descricao: "Seguro Saúde Família",
-      valor: 78,
-      tipo: "despesa",
-      data: d2.toISOString().split("T")[0],
-      categoria_id: catMap["Seguros"],
-      conta_id: pick(contaIds),
-    });
-  }
-
-  // Poupança/Investimento
-  for (let m = 0; m < 6; m++) {
-    const d = new Date();
-    d.setMonth(d.getMonth() - m);
-    d.setDate(27);
-    transacoes.push({
-      descricao: "Transferência Poupança",
-      valor: 300,
-      tipo: "despesa",
-      data: d.toISOString().split("T")[0],
-      categoria_id: catMap["Poupança/Invest."],
-      conta_id: pick(contaIds),
-      notas: "Poupança mensal programada",
-    });
-  }
-
-  // Dividendos
-  transacoes.push({
-    descricao: "Dividendos ETF VWCE",
-    valor: 142.30,
-    tipo: "receita",
-    data: randomDate(90),
-    categoria_id: catMap["Dividendos"],
-    conta_id: pick(contaIds),
-  });
-  transacoes.push({
-    descricao: "Juros Conta Poupança",
-    valor: 38.60,
-    tipo: "receita",
-    data: randomDate(60),
-    categoria_id: catMap["Dividendos"],
-    conta_id: pick(contaIds),
-  });
-
-  return transacoes;
+  return t;
 }
-
-// ─── Main ────────────────────────────────────────────────────────────────────
 
 async function seed() {
   const client = await pool.connect();
-
   try {
     await client.query("BEGIN");
-
-    console.log("🗑️  A limpar dados existentes...");
-    // Ordem inversa de dependências
+    console.log("Limpar dados existentes...");
     await client.query("DELETE FROM convites");
     await client.query("DELETE FROM membros_agregado");
     await client.query("DELETE FROM orcamentos");
@@ -532,127 +171,112 @@ async function seed() {
     await client.query("DELETE FROM utilizadores");
     await client.query("DELETE FROM agregados");
 
-    // ── Agregado ─────────────────────────────────────────────────────────
-    console.log("👨‍👩‍👧  A criar agregado familiar...");
-    const { rows: [agregado] } = await client.query(
-      `INSERT INTO agregados (nome) VALUES ($1) RETURNING id`,
-      ["Família Silva Correia"]
-    );
-    const agregadoId = agregado.id;
+    console.log("Criar agregado...");
+    const { rows:[ag] } = await client.query("INSERT INTO agregados (nome) VALUES ($1) RETURNING id", ["Familia Silva Correia"]);
+    const agregadoId = ag.id;
 
-    // ── Utilizadores ──────────────────────────────────────────────────────
-    console.log("👤 A criar utilizadores...");
-    const utilizadores = [
-      { nome: "Gonçalo Silva",   email: "goncalo@example.com", senha: "password123", papel: "admin"  },
-      { nome: "Ana Correia",     email: "ana@example.com",     senha: "password123", papel: "membro" },
-      { nome: "Pedro Silva",     email: "pedro@example.com",   senha: "password123", papel: "membro" },
+    console.log("Criar utilizadores...");
+    const users = [
+      { nome:"Goncalo Silva", email:"goncalo@example.com", senha:"password123", papel:"admin",  iniciais:"GS" },
+      { nome:"Ana Correia",   email:"ana@example.com",     senha:"password123", papel:"membro", iniciais:"AC" },
+      { nome:"Pedro Silva",   email:"pedro@example.com",   senha:"password123", papel:"membro", iniciais:"PS" },
     ];
-
     const userIds = [];
-    for (const u of utilizadores) {
+    for (const u of users) {
       const hash = await bcrypt.hash(u.senha, 10);
-      const { rows: [user] } = await client.query(
-        `INSERT INTO utilizadores (nome, email, senha, agregado_id) VALUES ($1,$2,$3,$4) RETURNING id`,
-        [u.nome, u.email, hash, agregadoId]
+      const { rows:[user] } = await client.query(
+        "INSERT INTO utilizadores (nome, email, password_hash, avatar_iniciais) VALUES ($1,$2,$3,$4) RETURNING id",
+        [u.nome, u.email, hash, u.iniciais]
       );
-      await client.query(
-        `INSERT INTO membros_agregado (agregado_id, utilizador_id, papel) VALUES ($1,$2,$3)`,
-        [agregadoId, user.id, u.papel]
-      );
+      await client.query("INSERT INTO membros_agregado (agregado_id, utilizador_id, papel) VALUES ($1,$2,$3)", [agregadoId, user.id, u.papel]);
       userIds.push(user.id);
     }
+    const adminId = userIds[0];
 
-    // ── Categorias ────────────────────────────────────────────────────────
-    console.log("🏷️  A criar categorias...");
+    console.log("Criar categorias...");
     const catMap = {};
     for (const cat of CATEGORIAS) {
-      const { rows: [c] } = await client.query(
-        `INSERT INTO categorias (nome, tipo, icone, cor, agregado_id) VALUES ($1,$2,$3,$4,$5) RETURNING id`,
-        [cat.nome, cat.tipo, cat.icone, cat.cor, agregadoId]
+      const { rows:[c] } = await client.query(
+        "INSERT INTO categorias (nome, tipo, icone, cor, agregado_id, utilizador_id, criado_por) VALUES ($1,$2,$3,$4,$5,$6,$6) RETURNING id",
+        [cat.nome, cat.tipo, cat.icone, cat.cor, agregadoId, adminId]
       );
       catMap[cat.nome] = c.id;
     }
 
-    // ── Contas ────────────────────────────────────────────────────────────
-    console.log("🏦 A criar contas bancárias...");
+    console.log("Criar contas...");
     const contaIds = [];
     for (const conta of CONTAS) {
-      const { rows: [c] } = await client.query(
-        `INSERT INTO contas (nome, tipo, banco, saldo, cor, agregado_id) VALUES ($1,$2,$3,$4,$5,$6) RETURNING id`,
-        [conta.nome, conta.tipo, conta.banco, conta.saldo, conta.cor, agregadoId]
+      const { rows:[c] } = await client.query(
+        "INSERT INTO contas (nome, tipo, saldo, cor, icone, agregado_id, utilizador_id, criado_por) VALUES ($1,$2,$3,$4,$5,$6,$7,$7) RETURNING id",
+        [conta.nome, conta.tipo, conta.saldo, conta.cor, conta.icone, agregadoId, adminId]
       );
       contaIds.push(c.id);
     }
 
-    // ── Veículos ──────────────────────────────────────────────────────────
-    console.log("🚗 A criar veículos...");
-    for (const v of VEICULOS_DATA) {
-      await client.query(
-        `INSERT INTO veiculos
-          (marca, modelo, matricula, ano, combustivel, quilometros,
-           ultima_inspecao, proxima_inspecao, seguro_validade, seguro_empresa, notas, agregado_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
-        [v.marca, v.modelo, v.matricula, v.ano, v.combustivel, v.quilometros,
-         v.ultima_inspecao, v.proxima_inspecao, v.seguro_validade, v.seguro_empresa, v.notas, agregadoId]
+    console.log("Criar veiculos...");
+    const veiculosData = [
+      { nome:"VW Golf 1.0 TSI",       marca:"Volkswagen", modelo:"Golf 1.0 TSI",      matricula:"AA-12-BB", ano:2019, combustivel:"gasolina", inspecao_vencimento:"2025-04-15", seguro_vencimento:monthDate(30,2) },
+      { nome:"Renault Clio E-Tech",    marca:"Renault",    modelo:"Clio E-Tech Hybrid", matricula:"CC-34-DD", ano:2022, combustivel:"hibrido",  inspecao_vencimento:"2026-01-10", seguro_vencimento:monthDate(15,4) },
+    ];
+    const veiculoIds = [];
+    for (const v of veiculosData) {
+      const { rows:[ve] } = await client.query(
+        "INSERT INTO veiculos (nome, marca, modelo, matricula, ano, combustivel, inspecao_vencimento, seguro_vencimento, agregado_id, utilizador_id, criado_por) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$10) RETURNING id",
+        [v.nome, v.marca, v.modelo, v.matricula, v.ano, v.combustivel, v.inspecao_vencimento, v.seguro_vencimento, agregadoId, adminId]
       );
+      veiculoIds.push(ve.id);
     }
 
-    // ── Prazos ────────────────────────────────────────────────────────────
-    console.log("📅 A criar prazos/faturas...");
+    console.log("Criar prazos...");
     for (const p of PRAZOS_DATA) {
       await client.query(
-        `INSERT INTO prazos
-          (descricao, valor, data_vencimento, recorrente, pago, categoria_id, agregado_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7)`,
-        [p.descricao, p.valor, p.data_vencimento, p.recorrente, p.pago,
-         catMap[p.categoria] || null, agregadoId]
+        "INSERT INTO prazos (nome, tipo, valor_estimado, data_vencimento, recorrente, recorrencia_meses, pago, agregado_id, utilizador_id, criado_por) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9)",
+        [p.nome, p.tipo, p.valor_estimado, p.data_vencimento, p.recorrente, p.recorrencia_meses, p.pago, agregadoId, adminId]
+      );
+    }
+    const prazoVeiculos = [
+      { nome:"Inspecao Golf",      tipo:"inspecao", valor_estimado:35,    data_vencimento:"2025-04-15",    recorrente:false, pago:false, veiculo_id:veiculoIds[0] },
+      { nome:"Seguro Golf",        tipo:"seguro",   valor_estimado:52.30, data_vencimento:monthDate(28,2), recorrente:true,  pago:false, veiculo_id:veiculoIds[0] },
+      { nome:"Seguro Clio Hybrid", tipo:"seguro",   valor_estimado:44.80, data_vencimento:monthDate(15,4), recorrente:true,  pago:false, veiculo_id:veiculoIds[1] },
+    ];
+    for (const p of prazoVeiculos) {
+      await client.query(
+        "INSERT INTO prazos (nome, tipo, valor_estimado, data_vencimento, recorrente, pago, veiculo_id, agregado_id, utilizador_id, criado_por) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9)",
+        [p.nome, p.tipo, p.valor_estimado, p.data_vencimento, p.recorrente, p.pago, p.veiculo_id, agregadoId, adminId]
       );
     }
 
-    // ── Metas de Poupança ─────────────────────────────────────────────────
-    console.log("💰 A criar metas de poupança...");
+    console.log("Criar poupancas...");
     for (const mp of POUPANCAS_DATA) {
       await client.query(
-        `INSERT INTO metas_poupanca
-          (nome, valor_objetivo, valor_atual, data_objetivo, descricao, agregado_id)
-         VALUES ($1,$2,$3,$4,$5,$6)`,
-        [mp.nome, mp.valor_objetivo, mp.valor_atual, mp.data_objetivo, mp.descricao, agregadoId]
+        "INSERT INTO metas_poupanca (nome, descricao, valor_meta, valor_atual, data_alvo, icone, cor, agregado_id, utilizador_id, criado_por) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9)",
+        [mp.nome, mp.descricao, mp.valor_meta, mp.valor_atual, mp.data_alvo, mp.icone, mp.cor, agregadoId, adminId]
       );
     }
 
-    // ── Transações ────────────────────────────────────────────────────────
-    console.log("💸 A gerar transações (pode demorar alguns segundos)...");
-    const transacoes = gerarTransacoes(catMap, contaIds);
-
+    console.log("Gerar transacoes...");
+    const transacoes = gerarTransacoes(catMap, contaIds, adminId, agregadoId);
     for (const t of transacoes) {
       await client.query(
-        `INSERT INTO transacoes
-          (descricao, valor, tipo, data, categoria_id, conta_id, notas, agregado_id)
-         VALUES ($1,$2,$3,$4,$5,$6,$7,$8)`,
-        [t.descricao, t.valor, t.tipo, t.data,
-         t.categoria_id, t.conta_id, t.notas || null, agregadoId]
+        "INSERT INTO transacoes (descricao, valor, tipo, data, categoria_id, conta_id, notas, agregado_id, utilizador_id, criado_por) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$9)",
+        [t.descricao, t.valor, t.tipo, t.data, t.categoria_id, t.conta_id, t.notas||null, t.agregado_id, t.utilizador_id]
       );
     }
 
     await client.query("COMMIT");
-
-    console.log("\n✅ SEED COMPLETO!\n");
-    console.log(`   Agregado:      Família Silva Correia`);
-    console.log(`   Utilizadores:  ${utilizadores.length} (admin + 2 membros)`);
-    console.log(`   Categorias:    ${CATEGORIAS.length}`);
-    console.log(`   Contas:        ${CONTAS.length}`);
-    console.log(`   Veículos:      ${VEICULOS_DATA.length}`);
-    console.log(`   Prazos:        ${PRAZOS_DATA.length}`);
-    console.log(`   Poupanças:     ${POUPANCAS_DATA.length}`);
-    console.log(`   Transações:    ~${transacoes.length}`);
-    console.log(`\n   Login admin:   goncalo@example.com / password123`);
-    console.log(`   Login membro:  ana@example.com / password123`);
-    console.log(`   Login membro:  pedro@example.com / password123\n`);
-
-  } catch (err) {
+    console.log("\nSEED COMPLETO!");
+    console.log("Categorias: " + CATEGORIAS.length);
+    console.log("Contas: " + CONTAS.length);
+    console.log("Veiculos: " + veiculosData.length);
+    console.log("Prazos: " + (PRAZOS_DATA.length + prazoVeiculos.length));
+    console.log("Poupancas: " + POUPANCAS_DATA.length);
+    console.log("Transacoes: ~" + transacoes.length);
+    console.log("\nLogin admin:  goncalo@example.com / password123");
+    console.log("Login membro: ana@example.com / password123");
+    console.log("Login membro: pedro@example.com / password123");
+  } catch(err) {
     await client.query("ROLLBACK");
-    console.error("❌ Erro no seed:", err.message);
-    console.error(err.stack);
+    console.error("Erro:", err.message);
     process.exit(1);
   } finally {
     client.release();

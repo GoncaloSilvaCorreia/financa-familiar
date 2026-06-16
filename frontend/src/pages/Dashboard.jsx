@@ -364,7 +364,7 @@ export default function Dashboard() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">
-            {saudacao}, {utilizador?.nome?.split(' ')[0]} 👋
+            {saudacao}, {utilizador?.nome?.split(' ')[0]}
           </h1>
           <p className="text-sm text-gray-400 mt-0.5">{MESES[mes - 1]} {ano} · Resumo mensal</p>
         </div>

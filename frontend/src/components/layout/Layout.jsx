@@ -29,7 +29,7 @@ export default function Layout() {
       <aside className="w-[220px] bg-white border-r border-gray-100 flex flex-col flex-shrink-0">
         {/* Logo */}
         <div className="px-5 py-5 border-b border-gray-100">
-          <div className="text-[15px] font-semibold text-gray-900">💼 FinançaFamiliar</div>
+          <div className="text-[15px] font-semibold text-gray-900">FinançaFamiliar</div>
           <div className="text-[11px] text-gray-400 mt-0.5">Gestão pessoal</div>
         </div>
 

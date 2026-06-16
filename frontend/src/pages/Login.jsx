@@ -28,7 +28,7 @@ export default function Login() {
       <div className="w-full max-w-sm">
         {/* Logo */}
         <div className="text-center mb-8">
-          <div className="text-3xl mb-2">💼</div>
+          <div className="text-3xl mb-2"></div>
           <h1 className="text-xl font-semibold text-gray-900">FinançaFamiliar</h1>
           <p className="text-sm text-gray-500 mt-1">Entra na tua conta</p>
         </div>
