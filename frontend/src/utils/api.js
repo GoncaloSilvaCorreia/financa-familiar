@@ -14,13 +14,24 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
   (res) => res,
   (err) => {
-    if (err.response?.status === 401 || err.response?.status === 403) {
+    const status = err.response?.status
+    const reqUrl = err.config?.url || ''
+
+    // Não redirecionar automaticamente para /login quando o próprio pedido de login falhar
+    const isLoginAttempt = reqUrl.includes('/auth/login')
+
+    if ((status === 401 || status === 403) && !isLoginAttempt) {
       localStorage.removeItem('token')
       localStorage.removeItem('utilizador')
-      window.location.href = '/login'
+      // Só faz redirect se não estivermos já na página de login
+      if (window.location.pathname !== '/login') {
+        window.location.href = '/login'
+      }
     }
+
     return Promise.reject(err)
   }
 )
+
 
 export default api
