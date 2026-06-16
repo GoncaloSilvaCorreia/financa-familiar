@@ -5,7 +5,10 @@
   </component>
   <component name="ChangeListManager">
     <list default="true" id="eb0e1ec6-927d-4ff1-be94-3580731450c9" name="Changes" comment="">
-      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Login.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Login.jsx" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/routes/poupancas.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/routes/poupancas.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/backend/src/routes/veiculos.js" beforeDir="false" afterPath="$PROJECT_DIR$/backend/src/routes/veiculos.js" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/frontend/src/pages/Poupancas.jsx" beforeDir="false" afterPath="$PROJECT_DIR$/frontend/src/pages/Poupancas.jsx" afterDir="false" />
     </list>
     <option name="SHOW_DIALOG" value="false" />
     <option name="HIGHLIGHT_CONFLICTS" value="true" />
@@ -14,6 +17,7 @@
   </component>
   <component name="CopilotPersistence">
     <persistenceIdMap>
+      <entry key="_/Users/goncalocorreia/Library/CloudStorage/OneDrive-ESTGV/3º Ano/2º Semestre/ES2/Projeto/financa-familiar" value="3FDowVEa13HpXUJZWnDZvigkdin" />
       <entry key="_/Users/goncalocorreia/Library/CloudStorage/OneDrive-ESTGV/Projeto_Casa" value="3EaDDVEvHZhHhMJqm6bJmCBe679" />
     </persistenceIdMap>
   </component>
@@ -40,19 +44,20 @@
     <option name="hideEmptyMiddlePackages" value="true" />
     <option name="showLibraryContents" value="true" />
   </component>
-  <component name="PropertiesComponent">{
-  &quot;keyToString&quot;: {
-    &quot;ModuleVcsDetector.initialDetectionPerformed&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.ShowReadmeOnStart&quot;: &quot;true&quot;,
-    &quot;RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252&quot;: &quot;true&quot;,
-    &quot;com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1&quot;: &quot;true&quot;,
-    &quot;git-widget-placeholder&quot;: &quot;main&quot;,
-    &quot;junie.onboarding.icon.badge.shown&quot;: &quot;true&quot;,
-    &quot;kotlin-language-version-configured&quot;: &quot;true&quot;,
-    &quot;last_opened_file_path&quot;: &quot;/Users/goncalocorreia/Library/CloudStorage/OneDrive-ESTGV/Projeto_Casa&quot;,
-    &quot;to.speed.mode.migration.done&quot;: &quot;true&quot;
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "ModuleVcsDetector.initialDetectionPerformed": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "RunOnceActivity.TerminalTabsStorage.copyFrom.TerminalArrangementManager.252": "true",
+    "RunOnceActivity.git.unshallow": "true",
+    "com.intellij.ml.llm.matterhorn.ej.ui.settings.DefaultModelSelectionForGA.v1": "true",
+    "git-widget-placeholder": "main",
+    "junie.onboarding.icon.badge.shown": "true",
+    "kotlin-language-version-configured": "true",
+    "last_opened_file_path": "/Users/goncalocorreia/Library/CloudStorage/OneDrive-ESTGV/Projeto_Casa",
+    "to.speed.mode.migration.done": "true"
   }
-}</component>
+}]]></component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
       <changelist id="eb0e1ec6-927d-4ff1-be94-3580731450c9" name="Changes" comment="" />
@@ -62,6 +67,17 @@
       <updated>1780407667807</updated>
     </task>
     <servers />
+  </component>
+  <component name="Vcs.Log.Tabs.Properties">
+    <option name="TAB_STATES">
+      <map>
+        <entry key="MAIN">
+          <value>
+            <State />
+          </value>
+        </entry>
+      </map>
+    </option>
   </component>
   <component name="github-copilot-workspace">
     <instructionFileLocations>

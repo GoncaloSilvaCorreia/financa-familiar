@@ -37,18 +37,19 @@ router.post('/',
       return res.status(400).json({ erros: erros.array() });
     }
 
-    const { nome, descricao, valor_meta, valor_atual, data_alvo, icone, cor } = req.body;
+    const { nome, descricao, valor_meta, valor_atual, data_alvo, icone, cor, notas } = req.body;
 
     try {
       const { rows: [meta] } = await db.query(`
         INSERT INTO metas_poupanca
-          (utilizador_id, nome, descricao, valor_meta, valor_atual, data_alvo, icone, cor)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+          (utilizador_id, nome, descricao, valor_meta, valor_atual, data_alvo, icone, cor, notas)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
         RETURNING *, ROUND((valor_atual / valor_meta) * 100, 1) AS percentagem
       `, [
         req.utilizador.id, nome, descricao || null,
         valor_meta, valor_atual || 0,
-        data_alvo || null, icone || '🎯', cor || '#1D9E75'
+        data_alvo || null, icone || '🎯', cor || '#1D9E75',
+        notas || null
       ]);
 
       res.status(201).json(meta);
@@ -70,7 +71,7 @@ router.patch('/:id/depositar',
       return res.status(400).json({ erros: erros.array() });
     }
 
-    const { valor } = req.body; // positivo = depositar, negativo = levantar
+    const { valor } = req.body;
 
     try {
       const { rows } = await db.query(
@@ -104,7 +105,7 @@ router.patch('/:id/depositar',
 
 // ─── Atualizar meta ───────────────────────────────────────────────────────────
 router.put('/:id', async (req, res) => {
-  const { nome, descricao, valor_meta, data_alvo, icone, cor } = req.body;
+  const { nome, descricao, valor_meta, data_alvo, icone, cor, notas } = req.body;
 
   try {
     const { rows: [atualizada] } = await db.query(`
@@ -115,10 +116,11 @@ router.put('/:id', async (req, res) => {
         data_alvo = COALESCE($4, data_alvo),
         icone = COALESCE($5, icone),
         cor = COALESCE($6, cor),
+        notas = $7,
         atualizado_em = NOW()
-      WHERE id = $7 AND utilizador_id = $8
+      WHERE id = $8 AND utilizador_id = $9
       RETURNING *, ROUND((valor_atual / valor_meta) * 100, 1) AS percentagem
-    `, [nome, descricao, valor_meta, data_alvo, icone, cor, req.params.id, req.utilizador.id]);
+    `, [nome, descricao, valor_meta, data_alvo, icone, cor, notas || null, req.params.id, req.utilizador.id]);
 
     if (!atualizada) {
       return res.status(404).json({ erro: 'Meta não encontrada.' });

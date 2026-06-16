@@ -31,14 +31,10 @@ router.get('/', async (req, res) => {
 
 // ─── Criar veículo ────────────────────────────────────────────────────────────
 router.post('/',
-  [
-    body('nome').trim().notEmpty().withMessage('Nome obrigatório'),
-  ],
+  [body('nome').trim().notEmpty().withMessage('Nome obrigatório')],
   async (req, res) => {
     const erros = validationResult(req);
-    if (!erros.isEmpty()) {
-      return res.status(400).json({ erros: erros.array() });
-    }
+    if (!erros.isEmpty()) return res.status(400).json({ erros: erros.array() });
 
     const {
       nome, matricula, marca, modelo, ano, combustivel,
@@ -59,11 +55,9 @@ router.post('/',
         seguro_vencimento || null, inspecao_vencimento || null
       ]);
 
-      // Cria automaticamente o prazo de IUC se tiver dados
       if (iuc_valor && iuc_mes_vencimento) {
         const anoAtual = new Date().getFullYear();
         const dataIUC = `${anoAtual}-${String(iuc_mes_vencimento).padStart(2, '0')}-01`;
-
         await db.query(`
           INSERT INTO prazos (utilizador_id, nome, tipo, data_vencimento, valor_estimado, recorrente, recorrencia_meses, veiculo_id)
           VALUES ($1, $2, 'iuc', $3, $4, true, 12, $5)
@@ -79,6 +73,7 @@ router.post('/',
 );
 
 // ─── Atualizar veículo ────────────────────────────────────────────────────────
+// Usa atribuição direta em vez de COALESCE para permitir alterar qualquer campo
 router.put('/:id', async (req, res) => {
   const {
     nome, matricula, marca, modelo, ano, combustivel,
@@ -86,28 +81,43 @@ router.put('/:id', async (req, res) => {
   } = req.body;
 
   try {
+    // Busca o veículo atual para não perder campos não enviados
+    const { rows: atual } = await db.query(
+      'SELECT * FROM veiculos WHERE id = $1 AND utilizador_id = $2',
+      [req.params.id, req.utilizador.id]
+    );
+    if (atual.length === 0) return res.status(404).json({ erro: 'Veículo não encontrado.' });
+
+    const v = atual[0];
+
     const { rows: [atualizado] } = await db.query(`
       UPDATE veiculos SET
-        nome = COALESCE($1, nome),
-        matricula = COALESCE($2, matricula),
-        marca = COALESCE($3, marca),
-        modelo = COALESCE($4, modelo),
-        ano = COALESCE($5, ano),
-        combustivel = COALESCE($6, combustivel),
-        iuc_valor = COALESCE($7, iuc_valor),
-        iuc_mes_vencimento = COALESCE($8, iuc_mes_vencimento),
-        seguro_vencimento = COALESCE($9, seguro_vencimento),
-        inspecao_vencimento = COALESCE($10, inspecao_vencimento),
-        atualizado_em = NOW()
+        nome                = $1,
+        matricula           = $2,
+        marca               = $3,
+        modelo              = $4,
+        ano                 = $5,
+        combustivel         = $6,
+        iuc_valor           = $7,
+        iuc_mes_vencimento  = $8,
+        seguro_vencimento   = $9,
+        inspecao_vencimento = $10,
+        atualizado_em       = NOW()
       WHERE id = $11 AND utilizador_id = $12
       RETURNING *
-    `, [nome, matricula, marca, modelo, ano, combustivel,
-        iuc_valor, iuc_mes_vencimento, seguro_vencimento, inspecao_vencimento,
-        req.params.id, req.utilizador.id]);
-
-    if (!atualizado) {
-      return res.status(404).json({ erro: 'Veículo não encontrado.' });
-    }
+    `, [
+      nome               ?? v.nome,
+      matricula          ?? v.matricula,
+      marca              ?? v.marca,
+      modelo             ?? v.modelo,
+      ano                ?? v.ano,
+      combustivel        ?? v.combustivel,       // sem COALESCE — permite alterar livremente
+      iuc_valor          ?? v.iuc_valor,
+      iuc_mes_vencimento ?? v.iuc_mes_vencimento,
+      seguro_vencimento  !== undefined ? (seguro_vencimento || null) : v.seguro_vencimento,
+      inspecao_vencimento !== undefined ? (inspecao_vencimento || null) : v.inspecao_vencimento,
+      req.params.id, req.utilizador.id
+    ]);
 
     res.json(atualizado);
   } catch (err) {
@@ -123,11 +133,7 @@ router.delete('/:id', async (req, res) => {
       'UPDATE veiculos SET ativo = false WHERE id = $1 AND utilizador_id = $2 RETURNING id',
       [req.params.id, req.utilizador.id]
     );
-
-    if (rows.length === 0) {
-      return res.status(404).json({ erro: 'Veículo não encontrado.' });
-    }
-
+    if (rows.length === 0) return res.status(404).json({ erro: 'Veículo não encontrado.' });
     res.json({ mensagem: 'Veículo arquivado com sucesso.' });
   } catch (err) {
     console.error('Erro ao arquivar veículo:', err);

@@ -9,8 +9,8 @@ function moeda(val) {
 function Modal({ titulo, onClose, children }) {
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-md max-h-[90vh] overflow-y-auto">
+        <div className="flex items-center justify-between px-5 py-4 border-b border-gray-100 sticky top-0 bg-white">
           <h2 className="text-sm font-semibold text-gray-800">{titulo}</h2>
           <button onClick={onClose} className="text-gray-300 hover:text-gray-500 transition-colors">
             <X size={18} />
@@ -25,7 +25,7 @@ function Modal({ titulo, onClose, children }) {
 function FormMeta({ inicial, onGuardar, onCancelar }) {
   const [form, setForm] = useState(inicial || {
     nome: '', descricao: '', valor_meta: '', valor_atual: '0',
-    data_alvo: '', icone: '🎯', cor: '#1D9E75'
+    data_alvo: '', icone: '🎯', cor: '#1D9E75', notas: ''
   })
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
@@ -107,6 +107,17 @@ function FormMeta({ inicial, onGuardar, onCancelar }) {
         </div>
       </div>
 
+      <div>
+        <label className="block text-xs font-medium text-gray-600 mb-1.5">Notas (opcional)</label>
+        <textarea
+          placeholder="Ex: https://www.fnac.pt/computador-portatil-..."
+          value={form.notas}
+          onChange={e => setForm({ ...form, notas: e.target.value })}
+          rows={3}
+          className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none"
+        />
+      </div>
+
       {erro && <div className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{erro}</div>}
 
       <div className="flex gap-2 pt-1">
@@ -125,7 +136,7 @@ function FormMeta({ inicial, onGuardar, onCancelar }) {
 
 function ModalDeposito({ meta, onGuardar, onCancelar }) {
   const [valor, setValor] = useState('')
-  const [tipo, setTipo] = useState('depositar') // depositar | levantar
+  const [tipo, setTipo] = useState('depositar')
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e) {
@@ -181,11 +192,106 @@ function ModalDeposito({ meta, onGuardar, onCancelar }) {
   )
 }
 
+// ─── Modal de Detalhes da Meta ────────────────────────────────────────────────
+function ModalDetalhes({ meta, onClose, onEditar, onDepositar, onApagar }) {
+  const pct = Math.min(parseFloat(meta.percentagem || 0), 100)
+  const falta = Math.max(parseFloat(meta.valor_meta) - parseFloat(meta.valor_atual), 0)
+
+  // Detecta links nas notas e torna-os clicáveis
+  function renderNotas(texto) {
+    if (!texto) return null
+    const urlRegex = /(https?:\/\/[^\s]+)/g
+    const partes = texto.split(urlRegex)
+    return partes.map((parte, i) =>
+      urlRegex.test(parte) ? (
+        <a key={i} href={parte} target="_blank" rel="noopener noreferrer"
+          className="text-blue-500 hover:underline break-all">
+          {parte}
+        </a>
+      ) : <span key={i}>{parte}</span>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-2xl shadow-xl w-full max-w-sm">
+        {/* Header */}
+        <div className="rounded-t-2xl px-5 py-5" style={{ background: meta.cor + '15' }}>
+          <div className="flex items-start justify-between">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
+                style={{ background: meta.cor + '25' }}>
+                {meta.icone}
+              </div>
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900">{meta.nome}</h2>
+                {meta.data_alvo && (
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Objetivo: {new Date(meta.data_alvo).toLocaleDateString('pt-PT')}
+                  </p>
+                )}
+              </div>
+            </div>
+            <button onClick={onClose} className="text-gray-400 hover:text-gray-600 transition-colors">
+              <X size={17} />
+            </button>
+          </div>
+          <div className="mt-4">
+            <div className="flex items-end gap-1">
+              <span className="text-2xl font-bold text-gray-900">{moeda(meta.valor_atual)}</span>
+              <span className="text-sm text-gray-400 mb-0.5">/ {moeda(meta.valor_meta)}</span>
+            </div>
+            <div className="mt-2 h-2 bg-white/50 rounded-full overflow-hidden">
+              <div className="h-full rounded-full transition-all" style={{ width: `${pct}%`, background: meta.cor }} />
+            </div>
+            <div className="flex justify-between mt-1">
+              <span className="text-xs text-gray-400">{pct}%</span>
+              <span className="text-xs text-gray-400">{moeda(falta)} em falta</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="p-5 flex flex-col gap-4">
+          {/* Notas */}
+          {meta.notas && (
+            <div>
+              <p className="text-xs font-medium text-gray-400 mb-1.5">Notas</p>
+              <p className="text-sm text-gray-600 leading-relaxed whitespace-pre-wrap">
+                {renderNotas(meta.notas)}
+              </p>
+            </div>
+          )}
+
+          <div className="border-t border-gray-100" />
+
+          <div className="flex gap-2">
+            <button onClick={() => { onClose(); onApagar(meta) }}
+              className="flex-1 py-2 text-xs text-red-400 border border-red-100 rounded-lg hover:bg-red-50 transition font-medium">
+              Apagar
+            </button>
+            {!meta.concluida && (
+              <button onClick={() => { onClose(); onDepositar(meta) }}
+                className="flex-1 py-2 text-xs text-gray-600 border border-gray-200 rounded-lg hover:bg-gray-50 transition font-medium">
+                Atualizar
+              </button>
+            )}
+            <button onClick={() => { onClose(); onEditar(meta) }}
+              className="flex-1 py-2 text-xs text-white bg-blue-600 hover:bg-blue-700 rounded-lg transition font-medium">
+              Editar
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function Poupancas() {
   const [metas, setMetas] = useState([])
   const [loading, setLoading] = useState(true)
   const [modal, setModal] = useState(null)
   const [modalDeposito, setModalDeposito] = useState(null)
+  const [modalDetalhes, setModalDetalhes] = useState(null)
   const [aApagar, setAApagar] = useState(null)
 
   async function carregar() {
@@ -217,7 +323,6 @@ export default function Poupancas() {
 
   return (
     <div className="p-6 max-w-4xl mx-auto">
-      {/* Header */}
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Poupanças</h1>
@@ -231,7 +336,6 @@ export default function Poupancas() {
         </button>
       </div>
 
-      {/* Barra de progresso global */}
       {metas.length > 0 && (
         <div className="bg-white rounded-2xl border border-gray-100 p-5 mb-5">
           <div className="flex items-center justify-between mb-2">
@@ -251,7 +355,6 @@ export default function Poupancas() {
         </div>
       )}
 
-      {/* Metas */}
       {loading ? (
         <div className="flex items-center justify-center py-16">
           <div className="w-7 h-7 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
@@ -267,7 +370,9 @@ export default function Poupancas() {
             const pct = Math.min(parseFloat(m.percentagem || 0), 100)
             const falta = Math.max(parseFloat(m.valor_meta) - parseFloat(m.valor_atual), 0)
             return (
-              <div key={m.id} className={`bg-white rounded-2xl border p-5 ${m.concluida ? 'border-emerald-200' : 'border-gray-100'}`}>
+              <div key={m.id}
+                onClick={() => setModalDetalhes(m)}
+                className={`bg-white rounded-2xl border p-5 cursor-pointer hover:shadow-md transition-shadow ${m.concluida ? 'border-emerald-200' : 'border-gray-100'}`}>
                 <div className="flex items-start justify-between mb-4">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-xl flex items-center justify-center text-xl"
@@ -275,7 +380,10 @@ export default function Poupancas() {
                       {m.icone}
                     </div>
                     <div>
-                      <div className="text-sm font-semibold text-gray-800">{m.nome}</div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm font-semibold text-gray-800">{m.nome}</span>
+                        {m.notas && <span className="text-gray-300 text-xs">📎</span>}
+                      </div>
                       {m.data_alvo && (
                         <div className="text-xs text-gray-400 mt-0.5">
                           Objetivo: {new Date(m.data_alvo).toLocaleDateString('pt-PT')}
@@ -283,7 +391,7 @@ export default function Poupancas() {
                       )}
                     </div>
                   </div>
-                  <div className="flex items-center gap-1">
+                  <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                     <button onClick={() => setModal(m)}
                       className="p-1.5 text-gray-300 hover:text-blue-500 transition-colors rounded-lg hover:bg-blue-50">
                       <Pencil size={13} />
@@ -295,7 +403,6 @@ export default function Poupancas() {
                   </div>
                 </div>
 
-                {/* Barra de progresso */}
                 <div className="mb-3">
                   <div className="flex justify-between items-center mb-1.5">
                     <span className="text-xs text-gray-400">{pct}% concluído</span>
@@ -317,7 +424,7 @@ export default function Poupancas() {
                       ✓ Concluída
                     </span>
                   ) : (
-                    <button onClick={() => setModalDeposito(m)}
+                    <button onClick={e => { e.stopPropagation(); setModalDeposito(m) }}
                       className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg border border-gray-200 text-gray-500 hover:bg-blue-50 hover:text-blue-600 hover:border-blue-200 transition">
                       <TrendingUp size={12} /> Atualizar
                     </button>
@@ -327,6 +434,17 @@ export default function Poupancas() {
             )
           })}
         </div>
+      )}
+
+      {/* Modal detalhes */}
+      {modalDetalhes && (
+        <ModalDetalhes
+          meta={modalDetalhes}
+          onClose={() => setModalDetalhes(null)}
+          onEditar={m => setModal({ ...m, data_alvo: m.data_alvo?.split('T')[0] || '' })}
+          onDepositar={m => setModalDeposito(m)}
+          onApagar={m => setAApagar(m)}
+        />
       )}
 
       {/* Modal criar/editar */}

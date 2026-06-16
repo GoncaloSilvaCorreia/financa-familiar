@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Plus, X, Pencil, Trash2, AlertTriangle } from 'lucide-react'
+import { Plus, X, Pencil, Trash2, AlertTriangle, Check } from 'lucide-react'
 import api from '../utils/api'
 
 function moeda(val) {
@@ -12,13 +12,26 @@ function diasAte(data) {
   return diff
 }
 
-function BadgeData({ label, data }) {
+// Recebe também se o prazo associado está pago
+function BadgeData({ label, data, pago }) {
   if (!data) return null
   const dias = diasAte(data)
+
+  if (pago) {
+    return (
+      <div className="flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-600">
+        <Check size={11} />
+        <span>{label}</span>
+        <span className="font-medium">Pago</span>
+      </div>
+    )
+  }
+
   const cls = dias < 0 ? 'bg-gray-100 text-gray-400'
     : dias <= 30 ? 'bg-red-50 text-red-500'
     : dias <= 90 ? 'bg-orange-50 text-orange-500'
     : 'bg-gray-50 text-gray-500'
+
   return (
     <div className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-lg ${cls}`}>
       {dias <= 30 && dias >= 0 && <AlertTriangle size={11} />}
@@ -77,7 +90,7 @@ function FormVeiculo({ inicial, onGuardar, onCancelar }) {
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Nome / Alcunha</label>
@@ -205,12 +218,21 @@ export default function Veiculos() {
     }
   }
 
+  // Verifica se o prazo de inspeção ou seguro está marcado como pago nos prazos_pendentes
+  // Se NÃO está em prazos_pendentes (porque está pago), mostra como pago
+  function prazoEstaAtivo(veiculo, tipo) {
+    const pendentes = veiculo.prazos_pendentes || []
+    return pendentes.some(p => p.tipo === tipo)
+  }
+
   return (
     <div className="p-6 max-w-4xl mx-auto">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-semibold text-gray-900">Veículos</h1>
-          <p className="text-sm text-gray-400 mt-0.5">{veiculos.length} veículo{veiculos.length !== 1 ? 's' : ''} registado{veiculos.length !== 1 ? 's' : ''}</p>
+          <p className="text-sm text-gray-400 mt-0.5">
+            {veiculos.length} veículo{veiculos.length !== 1 ? 's' : ''} registado{veiculos.length !== 1 ? 's' : ''}
+          </p>
         </div>
         <button onClick={() => setModal('criar')}
           className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition">
@@ -229,64 +251,67 @@ export default function Veiculos() {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {veiculos.map(v => (
-            <div key={v.id} className="bg-white rounded-2xl border border-gray-100 p-5">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center text-2xl">🚗</div>
-                  <div>
-                    <div className="text-sm font-semibold text-gray-800">{v.nome}</div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      {[v.marca, v.modelo, v.ano].filter(Boolean).join(' · ')}
+          {veiculos.map(v => {
+            const inspecaoPaga = !prazoEstaAtivo(v, 'inspecao')
+            const seguroPago   = !prazoEstaAtivo(v, 'seguro')
+
+            return (
+              <div key={v.id} className="bg-white rounded-2xl border border-gray-100 p-5">
+                <div className="flex items-start justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-11 h-11 rounded-xl bg-blue-50 flex items-center justify-center text-2xl">🚗</div>
+                    <div>
+                      <div className="text-sm font-semibold text-gray-800">{v.nome}</div>
+                      <div className="text-xs text-gray-400 mt-0.5">
+                        {[v.marca, v.modelo, v.ano].filter(Boolean).join(' · ')}
+                      </div>
                     </div>
                   </div>
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => setModal({
+                      ...v,
+                      seguro_vencimento: v.seguro_vencimento?.split('T')[0] || '',
+                      inspecao_vencimento: v.inspecao_vencimento?.split('T')[0] || ''
+                    })}
+                      className="p-1.5 text-gray-300 hover:text-blue-500 transition-colors rounded-lg hover:bg-blue-50">
+                      <Pencil size={13} />
+                    </button>
+                    <button onClick={() => setAApagar(v)}
+                      className="p-1.5 text-gray-300 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50">
+                      <Trash2 size={13} />
+                    </button>
+                  </div>
                 </div>
-                <div className="flex items-center gap-1">
-                  <button onClick={() => setModal({ ...v, seguro_vencimento: v.seguro_vencimento?.split('T')[0] || '', inspecao_vencimento: v.inspecao_vencimento?.split('T')[0] || '' })}
-                    className="p-1.5 text-gray-300 hover:text-blue-500 transition-colors rounded-lg hover:bg-blue-50">
-                    <Pencil size={13} />
-                  </button>
-                  <button onClick={() => setAApagar(v)}
-                    className="p-1.5 text-gray-300 hover:text-red-400 transition-colors rounded-lg hover:bg-red-50">
-                    <Trash2 size={13} />
-                  </button>
+
+                <div className="flex flex-wrap gap-2 mb-4">
+                  {v.matricula && (
+                    <span className="text-xs px-2.5 py-1 bg-gray-100 text-gray-500 rounded-lg font-mono">{v.matricula}</span>
+                  )}
+                  {v.combustivel && (
+                    <span className="text-xs px-2.5 py-1 bg-gray-50 text-gray-500 rounded-lg">{v.combustivel}</span>
+                  )}
+                  {v.iuc_valor && (
+                    <span className="text-xs px-2.5 py-1 bg-orange-50 text-orange-500 rounded-lg">
+                      IUC {moeda(v.iuc_valor)}/ano
+                    </span>
+                  )}
+                </div>
+
+                <div className="flex flex-wrap gap-2">
+                  <BadgeData
+                    label="Seguro"
+                    data={v.seguro_vencimento}
+                    pago={v.seguro_vencimento ? seguroPago : false}
+                  />
+                  <BadgeData
+                    label="Inspeção"
+                    data={v.inspecao_vencimento}
+                    pago={v.inspecao_vencimento ? inspecaoPaga : false}
+                  />
                 </div>
               </div>
-
-              <div className="flex flex-wrap gap-2 mb-4">
-                {v.matricula && (
-                  <span className="text-xs px-2.5 py-1 bg-gray-100 text-gray-500 rounded-lg font-mono">{v.matricula}</span>
-                )}
-                {v.combustivel && (
-                  <span className="text-xs px-2.5 py-1 bg-gray-50 text-gray-500 rounded-lg">{v.combustivel}</span>
-                )}
-                {v.iuc_valor && (
-                  <span className="text-xs px-2.5 py-1 bg-orange-50 text-orange-500 rounded-lg">
-                    IUC {moeda(v.iuc_valor)}/ano
-                  </span>
-                )}
-              </div>
-
-              <div className="flex flex-wrap gap-2">
-                <BadgeData label="Seguro" data={v.seguro_vencimento} />
-                <BadgeData label="Inspeção" data={v.inspecao_vencimento} />
-              </div>
-
-              {/* Prazos pendentes do veículo */}
-              {v.prazos_pendentes?.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-50">
-                  {v.prazos_pendentes.map(p => (
-                    <div key={p.id} className="flex items-center justify-between text-xs text-gray-400">
-                      <span>{p.nome}</span>
-                      <span className="text-orange-500 font-medium">
-                        {new Date(p.data_vencimento).toLocaleDateString('pt-PT')}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
 
