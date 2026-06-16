@@ -6,7 +6,7 @@ import api from '../utils/api'
 export default function Login() {
   const { login } = useAuth()
   const [form, setForm] = useState({ email: '', password: '' })
-  const [erros, setErros] = useState({}) // { email: '...', password: '...', geral: '...' }
+  const [erros, setErros] = useState({})
   const [loading, setLoading] = useState(false)
 
   async function handleSubmit(e) {
@@ -17,23 +17,14 @@ export default function Login() {
       const res = await api.post('/auth/login', form)
       login(res.data.token, res.data.utilizador)
     } catch (err) {
-      const msg = err.response?.data?.erro || ''
-      if (err.response?.status === 404 || msg.toLowerCase().includes('email')) {
-        setErros({ email: 'Este email não está registado.' })
-      } else if (err.response?.status === 401) {
-        // Distinguir: email não encontrado vs password errada
-        // O backend devolve a mesma mensagem por segurança, mas podemos diferenciar
-        // com um campo extra que vamos adicionar ao backend
-        if (err.response?.data?.campo === 'password') {
-          setErros({ password: 'Password incorreta.' })
-        } else if (err.response?.data?.campo === 'email') {
-          setErros({ email: 'Este email não está registado.' })
-        } else {
-          // fallback genérico
-          setErros({ geral: 'Email ou password incorretos.' })
-        }
+      const campo = err.response?.data?.campo
+      const msg   = err.response?.data?.erro || 'Erro ao fazer login.'
+      if (campo === 'email') {
+        setErros({ email: msg })
+      } else if (campo === 'password') {
+        setErros({ password: msg })
       } else {
-        setErros({ geral: err.response?.data?.erro || 'Erro ao fazer login.' })
+        setErros({ geral: msg })
       }
     } finally {
       setLoading(false)
@@ -43,9 +34,8 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        {/* Logo */}
         <div className="text-center mb-8">
-          <div className="text-3xl mb-2"></div>
+          <div className="text-3xl mb-2">🏠</div>
           <h1 className="text-xl font-semibold text-gray-900">Finança Familiar</h1>
           <p className="text-sm text-gray-500 mt-1">Entra na tua conta</p>
         </div>
@@ -56,7 +46,6 @@ export default function Login() {
               <label className="block text-xs font-medium text-gray-600 mb-1.5">Email</label>
               <input
                 type="email"
-                required
                 placeholder="exemplo@email.com"
                 value={form.email}
                 onChange={e => {
@@ -80,7 +69,6 @@ export default function Login() {
               <label className="block text-xs font-medium text-gray-600 mb-1.5">Password</label>
               <input
                 type="password"
-                required
                 placeholder="••••••••"
                 value={form.password}
                 onChange={e => {
@@ -120,7 +108,6 @@ export default function Login() {
             <Link to="/registar" className="text-blue-500 hover:underline">Registar</Link>
           </p>
 
-          {/* Demo */}
           <div className="mt-4 pt-4 border-t border-gray-100">
             <p className="text-center text-xs text-gray-400 mb-2">Conta de demonstração</p>
             <button
