@@ -7,6 +7,49 @@ const router = express.Router();
 
 router.use(autenticar);
 
+// Regex para os 3 formatos válidos de matrícula portuguesa
+const REGEX_MATRICULA = /^(\d{2}-\d{2}-[A-Z]{2}|\d{2}-[A-Z]{2}-\d{2}|[A-Z]{2}-\d{2}-\d{2})$/i;
+
+function validarVeiculo(body) {
+  const { nome, matricula, ano, combustivel, iuc_valor } = body;
+
+  if (!nome || !nome.trim()) {
+    return { erro: 'O nome do veículo é obrigatório.', campo: 'nome' };
+  }
+
+  if (matricula && matricula.trim() && !REGEX_MATRICULA.test(matricula.trim())) {
+    return {
+      erro: 'Matrícula inválida. Usa o formato 00-00-AA, 00-AA-00 ou AA-00-00.',
+      campo: 'matricula'
+    };
+  }
+
+  if (ano !== undefined && ano !== null && ano !== '') {
+    const anoNum = parseInt(ano, 10);
+    const anoAtual = new Date().getFullYear();
+    if (isNaN(anoNum) || !Number.isInteger(anoNum)) {
+      return { erro: 'O ano deve ser um número válido.', campo: 'ano' };
+    }
+    if (anoNum < 1900 || anoNum > anoAtual + 1) {
+      return { erro: `O ano deve estar entre 1900 e ${anoAtual + 1}.`, campo: 'ano' };
+    }
+  }
+
+  if (iuc_valor !== undefined && iuc_valor !== null && iuc_valor !== '') {
+    const valorNum = parseFloat(iuc_valor);
+    if (isNaN(valorNum) || valorNum <= 0) {
+      return { erro: 'O valor do IUC deve ser um número positivo.', campo: 'iuc_valor' };
+    }
+  }
+
+  const COMBUSTIVEIS_VALIDOS = ['Gasolina', 'Gasóleo', 'Elétrico', 'Híbrido', 'GPL', 'Outro'];
+  if (combustivel && !COMBUSTIVEIS_VALIDOS.includes(combustivel)) {
+    return { erro: 'Tipo de combustível inválido.', campo: 'combustivel' };
+  }
+
+  return null;
+}
+
 // ─── Listar veículos ──────────────────────────────────────────────────────────
 router.get('/', async (req, res) => {
   try {
@@ -34,7 +77,14 @@ router.post('/',
   [body('nome').trim().notEmpty().withMessage('Nome obrigatório')],
   async (req, res) => {
     const erros = validationResult(req);
-    if (!erros.isEmpty()) return res.status(400).json({ erros: erros.array() });
+    if (!erros.isEmpty()) {
+      return res.status(400).json({ erro: erros.array()[0].msg, campo: erros.array()[0].path });
+    }
+
+    const validacao = validarVeiculo(req.body);
+    if (validacao) {
+      return res.status(400).json(validacao);
+    }
 
     const {
       nome, matricula, marca, modelo, ano, combustivel,
@@ -49,8 +99,9 @@ router.post('/',
         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
         RETURNING *
       `, [
-        req.utilizador.id, nome, matricula || null, marca || null,
-        modelo || null, ano || null, combustivel || null,
+        req.utilizador.id, nome.trim(),
+        matricula ? matricula.trim().toUpperCase() : null,
+        marca || null, modelo || null, ano || null, combustivel || null,
         iuc_valor || null, iuc_mes_vencimento || null,
         seguro_vencimento || null, inspecao_vencimento || null
       ]);
@@ -67,21 +118,24 @@ router.post('/',
       res.status(201).json(veiculo);
     } catch (err) {
       console.error('Erro ao criar veículo:', err);
-      res.status(500).json({ erro: 'Erro ao criar veículo.' });
+      res.status(500).json({ erro: 'Erro ao criar veículo. Tenta novamente.' });
     }
   }
 );
 
 // ─── Atualizar veículo ────────────────────────────────────────────────────────
-// Usa atribuição direta em vez de COALESCE para permitir alterar qualquer campo
 router.put('/:id', async (req, res) => {
+  const validacao = validarVeiculo(req.body);
+  if (validacao) {
+    return res.status(400).json(validacao);
+  }
+
   const {
     nome, matricula, marca, modelo, ano, combustivel,
     iuc_valor, iuc_mes_vencimento, seguro_vencimento, inspecao_vencimento
   } = req.body;
 
   try {
-    // Busca o veículo atual para não perder campos não enviados
     const { rows: atual } = await db.query(
       'SELECT * FROM veiculos WHERE id = $1 AND utilizador_id = $2',
       [req.params.id, req.utilizador.id]
@@ -106,15 +160,15 @@ router.put('/:id', async (req, res) => {
       WHERE id = $11 AND utilizador_id = $12
       RETURNING *
     `, [
-      nome               ?? v.nome,
-      matricula          ?? v.matricula,
-      marca              ?? v.marca,
-      modelo             ?? v.modelo,
-      ano                ?? v.ano,
-      combustivel        ?? v.combustivel,       // sem COALESCE — permite alterar livremente
-      iuc_valor          ?? v.iuc_valor,
+      nome != null ? nome.trim() : v.nome,
+      matricula != null ? (matricula.trim() ? matricula.trim().toUpperCase() : null) : v.matricula,
+      marca ?? v.marca,
+      modelo ?? v.modelo,
+      ano ?? v.ano,
+      combustivel ?? v.combustivel,
+      iuc_valor ?? v.iuc_valor,
       iuc_mes_vencimento ?? v.iuc_mes_vencimento,
-      seguro_vencimento  !== undefined ? (seguro_vencimento || null) : v.seguro_vencimento,
+      seguro_vencimento !== undefined ? (seguro_vencimento || null) : v.seguro_vencimento,
       inspecao_vencimento !== undefined ? (inspecao_vencimento || null) : v.inspecao_vencimento,
       req.params.id, req.utilizador.id
     ]);
@@ -122,7 +176,7 @@ router.put('/:id', async (req, res) => {
     res.json(atualizado);
   } catch (err) {
     console.error('Erro ao atualizar veículo:', err);
-    res.status(500).json({ erro: 'Erro ao atualizar veículo.' });
+    res.status(500).json({ erro: 'Erro ao atualizar veículo. Tenta novamente.' });
   }
 });
 

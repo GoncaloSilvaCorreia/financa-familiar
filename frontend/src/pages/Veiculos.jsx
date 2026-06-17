@@ -12,7 +12,6 @@ function diasAte(data) {
   return diff
 }
 
-// Recebe também se o prazo associado está pago
 function BadgeData({ label, data, pago }) {
   if (!data) return null
   const dias = diasAte(data)
@@ -67,13 +66,26 @@ function FormVeiculo({ inicial, onGuardar, onCancelar }) {
   })
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
+  const [campoErro, setCampoErro] = useState('')
 
   const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
   const COMBUSTIVEIS = ['Gasolina', 'Gasóleo', 'Elétrico', 'Híbrido', 'GPL', 'Outro']
 
+  function atualizarCampo(campo, valor) {
+    setForm({ ...form, [campo]: valor })
+    if (campoErro === campo) { setCampoErro(''); setErro('') }
+  }
+
+  function classeInput(campo) {
+    return `w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
+      campoErro === campo ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+    }`
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setErro('')
+    setCampoErro('')
     setLoading(true)
     try {
       if (inicial?.id) {
@@ -83,7 +95,8 @@ function FormVeiculo({ inicial, onGuardar, onCancelar }) {
       }
       onGuardar()
     } catch (err) {
-      setErro(err.response?.data?.erro || 'Erro ao guardar.')
+      setErro(err.response?.data?.erro || 'Erro ao guardar. Verifica os dados e tenta novamente.')
+      setCampoErro(err.response?.data?.campo || '')
     } finally {
       setLoading(false)
     }
@@ -95,38 +108,47 @@ function FormVeiculo({ inicial, onGuardar, onCancelar }) {
         <div className="col-span-2">
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Nome / Alcunha</label>
           <input required placeholder="Ex: Renault Clio"
-            value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })}
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            value={form.nome} onChange={e => atualizarCampo('nome', e.target.value)}
+            className={classeInput('nome')} />
+          {campoErro === 'nome' && (
+            <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erro}</p>
+          )}
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Marca</label>
           <input placeholder="Ex: Renault"
-            value={form.marca} onChange={e => setForm({ ...form, marca: e.target.value })}
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            value={form.marca} onChange={e => atualizarCampo('marca', e.target.value)}
+            className={classeInput('marca')} />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Modelo</label>
           <input placeholder="Ex: Clio"
-            value={form.modelo} onChange={e => setForm({ ...form, modelo: e.target.value })}
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            value={form.modelo} onChange={e => atualizarCampo('modelo', e.target.value)}
+            className={classeInput('modelo')} />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Matrícula</label>
           <input placeholder="Ex: 00-AA-00"
-            value={form.matricula} onChange={e => setForm({ ...form, matricula: e.target.value })}
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            value={form.matricula} onChange={e => atualizarCampo('matricula', e.target.value)}
+            className={classeInput('matricula')} />
+          {campoErro === 'matricula' && (
+            <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erro}</p>
+          )}
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Ano</label>
           <input type="number" placeholder="Ex: 2020"
-            value={form.ano} onChange={e => setForm({ ...form, ano: e.target.value })}
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            value={form.ano} onChange={e => atualizarCampo('ano', e.target.value)}
+            className={classeInput('ano')} />
+          {campoErro === 'ano' && (
+            <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erro}</p>
+          )}
         </div>
         <div className="col-span-2">
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Combustível</label>
           <div className="flex flex-wrap gap-2">
             {COMBUSTIVEIS.map(c => (
-              <button key={c} type="button" onClick={() => setForm({ ...form, combustivel: c })}
+              <button key={c} type="button" onClick={() => atualizarCampo('combustivel', c)}
                 className={`px-3 py-1.5 text-xs rounded-lg border transition ${
                   form.combustivel === c
                     ? 'bg-blue-50 text-blue-600 border-blue-200'
@@ -145,14 +167,17 @@ function FormVeiculo({ inicial, onGuardar, onCancelar }) {
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">IUC — Valor (€)</label>
             <input type="number" step="0.01" placeholder="0,00"
-              value={form.iuc_valor} onChange={e => setForm({ ...form, iuc_valor: e.target.value })}
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              value={form.iuc_valor} onChange={e => atualizarCampo('iuc_valor', e.target.value)}
+              className={classeInput('iuc_valor')} />
+            {campoErro === 'iuc_valor' && (
+              <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erro}</p>
+            )}
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">IUC — Mês vencimento</label>
             <select value={form.iuc_mes_vencimento}
-              onChange={e => setForm({ ...form, iuc_mes_vencimento: e.target.value })}
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+              onChange={e => atualizarCampo('iuc_mes_vencimento', e.target.value)}
+              className={classeInput('iuc_mes_vencimento')}>
               <option value="">Selecionar</option>
               {MESES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
             </select>
@@ -160,19 +185,24 @@ function FormVeiculo({ inicial, onGuardar, onCancelar }) {
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">Seguro — Vencimento</label>
             <input type="date" value={form.seguro_vencimento}
-              onChange={e => setForm({ ...form, seguro_vencimento: e.target.value })}
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              onChange={e => atualizarCampo('seguro_vencimento', e.target.value)}
+              className={classeInput('seguro_vencimento')} />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">Inspeção — Vencimento</label>
             <input type="date" value={form.inspecao_vencimento}
-              onChange={e => setForm({ ...form, inspecao_vencimento: e.target.value })}
-              className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+              onChange={e => atualizarCampo('inspecao_vencimento', e.target.value)}
+              className={classeInput('inspecao_vencimento')} />
           </div>
         </div>
       </div>
 
-      {erro && <div className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{erro}</div>}
+      {erro && !['nome', 'matricula', 'ano', 'iuc_valor'].includes(campoErro) && (
+        <div className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2.5 rounded-lg flex items-start gap-2">
+          <span className="mt-0.5">⚠</span>
+          <span>{erro}</span>
+        </div>
+      )}
 
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onCancelar}
@@ -218,8 +248,6 @@ export default function Veiculos() {
     }
   }
 
-  // Verifica se o prazo de inspeção ou seguro está marcado como pago nos prazos_pendentes
-  // Se NÃO está em prazos_pendentes (porque está pago), mostra como pago
   function prazoEstaAtivo(veiculo, tipo) {
     const pendentes = veiculo.prazos_pendentes || []
     return pendentes.some(p => p.tipo === tipo)
@@ -318,6 +346,7 @@ export default function Veiculos() {
       {modal && (
         <Modal titulo={modal === 'criar' ? 'Novo veículo' : 'Editar veículo'} onClose={() => setModal(null)}>
           <FormVeiculo
+            key={modal === 'criar' ? 'criar' : modal.id}
             inicial={modal !== 'criar' ? modal : null}
             onGuardar={() => { setModal(null); carregar() }}
             onCancelar={() => setModal(null)}
