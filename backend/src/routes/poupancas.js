@@ -34,41 +34,77 @@ router.post('/',
   async (req, res) => {
     const erros = validationResult(req);
     if (!erros.isEmpty()) {
-      return res.status(400).json({ erros: erros.array() });
+      return res.status(400).json({ erro: erros.array()[0].msg, campo: erros.array()[0].path });
     }
 
     const { nome, descricao, valor_meta, valor_atual, data_alvo, icone, cor, notas } = req.body;
 
+    const meta = parseFloat(valor_meta);
+    const atual = parseFloat(valor_atual || 0);
+
+    // ── Validação: valor atual não pode exceder o valor da meta ──────────────
+    if (atual > meta) {
+      return res.status(400).json({
+        erro: 'O valor atual não pode ser superior ao valor objetivo.',
+        campo: 'valor_atual'
+      });
+    }
+
+    // ── Validação: data objetivo não pode estar no passado ───────────────────
+    if (data_alvo) {
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      const dataAlvoDate = new Date(data_alvo);
+      if (dataAlvoDate < hoje) {
+        return res.status(400).json({
+          erro: 'A data objetivo não pode estar no passado.',
+          campo: 'data_alvo'
+        });
+      }
+    }
+
     try {
-      const { rows: [meta] } = await db.query(`
+      // ── Validação: não permitir nomes duplicados (mesmo utilizador) ────────
+      const { rows: existentes } = await db.query(
+        'SELECT id FROM metas_poupanca WHERE utilizador_id = $1 AND LOWER(nome) = LOWER($2)',
+        [req.utilizador.id, nome]
+      );
+      if (existentes.length > 0) {
+        return res.status(409).json({
+          erro: 'Já existe uma meta de poupança com esse nome.',
+          campo: 'nome'
+        });
+      }
+
+      const concluida = atual >= meta;
+
+      const { rows: [novaMeta] } = await db.query(`
         INSERT INTO metas_poupanca
-          (utilizador_id, nome, descricao, valor_meta, valor_atual, data_alvo, icone, cor, notas)
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+          (utilizador_id, nome, descricao, valor_meta, valor_atual, data_alvo, icone, cor, notas, concluida)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING *, ROUND((valor_atual / valor_meta) * 100, 1) AS percentagem
       `, [
         req.utilizador.id, nome, descricao || null,
-        valor_meta, valor_atual || 0,
+        meta, atual,
         data_alvo || null, icone || '🎯', cor || '#1D9E75',
-        notas || null
+        notas || null, concluida
       ]);
 
-      res.status(201).json(meta);
+      res.status(201).json(novaMeta);
     } catch (err) {
       console.error('Erro ao criar meta:', err);
-      res.status(500).json({ erro: 'Erro ao criar meta.' });
+      res.status(500).json({ erro: 'Erro ao criar meta. Tenta novamente.' });
     }
   }
 );
 
 // ─── Depositar / levantar valor ───────────────────────────────────────────────
 router.patch('/:id/depositar',
-  [
-    body('valor').isFloat().withMessage('Valor inválido'),
-  ],
+  [body('valor').isFloat().withMessage('Valor inválido')],
   async (req, res) => {
     const erros = validationResult(req);
     if (!erros.isEmpty()) {
-      return res.status(400).json({ erros: erros.array() });
+      return res.status(400).json({ erro: erros.array()[0].msg });
     }
 
     const { valor } = req.body;
@@ -105,26 +141,73 @@ router.patch('/:id/depositar',
 
 // ─── Atualizar meta ───────────────────────────────────────────────────────────
 router.put('/:id', async (req, res) => {
-  const { nome, descricao, valor_meta, data_alvo, icone, cor, notas } = req.body;
+  const { nome, descricao, valor_meta, valor_atual, data_alvo, icone, cor, notas } = req.body;
 
   try {
+    const { rows: atualRows } = await db.query(
+      'SELECT * FROM metas_poupanca WHERE id = $1 AND utilizador_id = $2',
+      [req.params.id, req.utilizador.id]
+    );
+    if (atualRows.length === 0) {
+      return res.status(404).json({ erro: 'Meta não encontrada.' });
+    }
+    const metaAtual = atualRows[0];
+
+    const novoMeta  = valor_meta !== undefined && valor_meta !== '' ? parseFloat(valor_meta) : parseFloat(metaAtual.valor_meta);
+    const novoAtual = valor_atual !== undefined && valor_atual !== '' ? parseFloat(valor_atual) : parseFloat(metaAtual.valor_atual);
+
+    // ── Validação: valor atual não pode exceder o valor da meta ──────────────
+    if (novoAtual > novoMeta) {
+      return res.status(400).json({
+        erro: 'O valor atual não pode ser superior ao valor objetivo.',
+        campo: 'valor_atual'
+      });
+    }
+
+    // ── Validação: data objetivo não pode estar no passado ───────────────────
+    const novaData = data_alvo !== undefined ? data_alvo : metaAtual.data_alvo;
+    if (novaData) {
+      const hoje = new Date();
+      hoje.setHours(0, 0, 0, 0);
+      if (new Date(novaData) < hoje) {
+        return res.status(400).json({
+          erro: 'A data objetivo não pode estar no passado.',
+          campo: 'data_alvo'
+        });
+      }
+    }
+
+    // ── Validação: nome duplicado (exceto a própria meta) ─────────────────────
+    if (nome && nome.trim()) {
+      const { rows: existentes } = await db.query(
+        'SELECT id FROM metas_poupanca WHERE utilizador_id = $1 AND LOWER(nome) = LOWER($2) AND id != $3',
+        [req.utilizador.id, nome, req.params.id]
+      );
+      if (existentes.length > 0) {
+        return res.status(409).json({
+          erro: 'Já existe uma meta de poupança com esse nome.',
+          campo: 'nome'
+        });
+      }
+    }
+
+    const concluida = novoAtual >= novoMeta;
+
     const { rows: [atualizada] } = await db.query(`
       UPDATE metas_poupanca SET
         nome = COALESCE($1, nome),
         descricao = COALESCE($2, descricao),
-        valor_meta = COALESCE($3, valor_meta),
-        data_alvo = COALESCE($4, data_alvo),
-        icone = COALESCE($5, icone),
-        cor = COALESCE($6, cor),
-        notas = $7,
+        valor_meta = $3,
+        valor_atual = $4,
+        data_alvo = $5,
+        icone = COALESCE($6, icone),
+        cor = COALESCE($7, cor),
+        notas = $8,
+        concluida = $9,
         atualizado_em = NOW()
-      WHERE id = $8 AND utilizador_id = $9
+      WHERE id = $10 AND utilizador_id = $11
       RETURNING *, ROUND((valor_atual / valor_meta) * 100, 1) AS percentagem
-    `, [nome, descricao, valor_meta, data_alvo, icone, cor, notas || null, req.params.id, req.utilizador.id]);
-
-    if (!atualizada) {
-      return res.status(404).json({ erro: 'Meta não encontrada.' });
-    }
+    `, [nome, descricao, novoMeta, novoAtual, data_alvo || null, icone, cor, notas || null, concluida, req.params.id, req.utilizador.id]);
 
     res.json(atualizada);
   } catch (err) {

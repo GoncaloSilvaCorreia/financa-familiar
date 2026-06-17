@@ -29,13 +29,20 @@ function FormMeta({ inicial, onGuardar, onCancelar }) {
   })
   const [loading, setLoading] = useState(false)
   const [erro, setErro] = useState('')
+  const [campoErro, setCampoErro] = useState('') // nome do campo com erro, para destacar
 
   const ICONES = ['🎯', '✈️', '🚗', '🏠', '📱', '💻', '🛡️', '🎓', '💍', '🐷', '🌍', '🎸']
   const CORES  = ['#1D9E75', '#3B8BD4', '#EF9F27', '#D85A30', '#7F77DD', '#D4537E']
 
+  function atualizarCampo(campo, valor) {
+    setForm({ ...form, [campo]: valor })
+    if (campoErro === campo) { setCampoErro(''); setErro('') }
+  }
+
   async function handleSubmit(e) {
     e.preventDefault()
     setErro('')
+    setCampoErro('')
     setLoading(true)
     try {
       if (inicial?.id) {
@@ -45,41 +52,50 @@ function FormMeta({ inicial, onGuardar, onCancelar }) {
       }
       onGuardar()
     } catch (err) {
-      setErro(err.response?.data?.erro || 'Erro ao guardar.')
+      setErro(err.response?.data?.erro || 'Erro ao guardar. Verifica os dados e tenta novamente.')
+      setCampoErro(err.response?.data?.campo || '')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+    <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-1.5">Nome da meta</label>
         <input required placeholder="Ex: Férias de verão"
-          value={form.nome} onChange={e => setForm({ ...form, nome: e.target.value })}
-          className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          value={form.nome} onChange={e => atualizarCampo('nome', e.target.value)}
+          className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
+            campoErro === 'nome' ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+          }`} />
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Valor objetivo (€)</label>
           <input required type="number" step="0.01" min="0.01" placeholder="0,00"
-            value={form.valor_meta} onChange={e => setForm({ ...form, valor_meta: e.target.value })}
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            value={form.valor_meta} onChange={e => atualizarCampo('valor_meta', e.target.value)}
+            className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
+              campoErro === 'valor_meta' ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+            }`} />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Valor atual (€)</label>
           <input type="number" step="0.01" min="0" placeholder="0,00"
-            value={form.valor_atual} onChange={e => setForm({ ...form, valor_atual: e.target.value })}
-            className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+            value={form.valor_atual} onChange={e => atualizarCampo('valor_atual', e.target.value)}
+            className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
+              campoErro === 'valor_atual' ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+            }`} />
         </div>
       </div>
 
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-1.5">Data objetivo</label>
         <input type="date" value={form.data_alvo}
-          onChange={e => setForm({ ...form, data_alvo: e.target.value })}
-          className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500" />
+          onChange={e => atualizarCampo('data_alvo', e.target.value)}
+          className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
+            campoErro === 'data_alvo' ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+          }`} />
       </div>
 
       <div>
@@ -118,7 +134,12 @@ function FormMeta({ inicial, onGuardar, onCancelar }) {
         />
       </div>
 
-      {erro && <div className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{erro}</div>}
+      {erro && (
+        <div className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2.5 rounded-lg flex items-start gap-2">
+          <span className="mt-0.5">⚠</span>
+          <span>{erro}</span>
+        </div>
+      )}
 
       <div className="flex gap-2 pt-1">
         <button type="button" onClick={onCancelar}
