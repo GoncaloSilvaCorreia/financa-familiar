@@ -123,7 +123,7 @@ function validarFormulario(form) {
 function FormVeiculo({ inicial, onGuardar, onCancelar }) {
   const [form, setForm] = useState(inicial || {
     nome: '', matricula: '', marca: '', modelo: '', ano: '',
-    combustivel: 'Gasolina', iuc_valor: '', iuc_mes_vencimento: '',
+    combustivel: '', iuc_valor: '', iuc_mes_vencimento: '',
     seguro_vencimento: '', inspecao_vencimento: ''
   })
   const [loading, setLoading] = useState(false)
