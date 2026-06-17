@@ -6,6 +6,48 @@ function moeda(val) {
   return Number(val).toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })
 }
 
+// Valida os campos do formulário de meta localmente, antes de chamar a API
+function validarFormularioMeta(form) {
+  const erros = {}
+
+  if (!form.nome || !form.nome.trim()) {
+    erros.nome = 'O nome da meta é obrigatório.'
+  }
+
+  if (form.valor_meta === '' || form.valor_meta === null || form.valor_meta === undefined) {
+    erros.valor_meta = 'O valor objetivo é obrigatório.'
+  } else {
+    const vMeta = parseFloat(form.valor_meta)
+    if (isNaN(vMeta) || vMeta <= 0) {
+      erros.valor_meta = 'O valor objetivo deve ser positivo.'
+    }
+  }
+
+  if (form.valor_atual !== '' && form.valor_atual !== null && form.valor_atual !== undefined) {
+    const vAtual = parseFloat(form.valor_atual)
+    if (isNaN(vAtual) || vAtual < 0) {
+      erros.valor_atual = 'O valor atual não pode ser negativo.'
+    } else if (!isNaN(parseFloat(form.valor_meta)) && vAtual > parseFloat(form.valor_meta)) {
+      erros.valor_atual = 'O valor atual não pode ser superior ao valor objetivo.'
+    }
+  }
+
+  if (form.data_alvo) {
+    const data = new Date(form.data_alvo)
+    if (isNaN(data.getTime())) {
+      erros.data_alvo = 'Data inválida.'
+    } else {
+      const hoje = new Date()
+      hoje.setHours(0, 0, 0, 0)
+      if (data < hoje) {
+        erros.data_alvo = 'A data objetivo não pode estar no passado.'
+      }
+    }
+  }
+
+  return erros
+}
+
 function Modal({ titulo, onClose, children }) {
   return (
     <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50 p-4">
@@ -43,6 +85,16 @@ function FormMeta({ inicial, onGuardar, onCancelar }) {
     e.preventDefault()
     setErro('')
     setCampoErro('')
+
+    // ── Validação local de todos os campos antes de chamar a API ─────────────
+    const erros = validarFormularioMeta(form)
+    if (Object.keys(erros).length > 0) {
+      const primeiroCampo = Object.keys(erros)[0]
+      setCampoErro(primeiroCampo)
+      setErro(erros[primeiroCampo])
+      return
+    }
+
     setLoading(true)
     try {
       if (inicial?.id) {
@@ -63,21 +115,27 @@ function FormMeta({ inicial, onGuardar, onCancelar }) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
       <div>
         <label className="block text-xs font-medium text-gray-600 mb-1.5">Nome da meta</label>
-        <input required placeholder="Ex: Férias de verão"
+        <input placeholder="Ex: Férias de verão"
           value={form.nome} onChange={e => atualizarCampo('nome', e.target.value)}
           className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
             campoErro === 'nome' ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
           }`} />
+        {campoErro === 'nome' && (
+          <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erro}</p>
+        )}
       </div>
 
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Valor objetivo (€)</label>
-          <input required type="number" step="0.01" min="0.01" placeholder="0,00"
+          <input type="number" step="0.01" min="0.01" placeholder="0,00"
             value={form.valor_meta} onChange={e => atualizarCampo('valor_meta', e.target.value)}
             className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
               campoErro === 'valor_meta' ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
             }`} />
+          {campoErro === 'valor_meta' && (
+            <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erro}</p>
+          )}
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Valor atual (€)</label>
@@ -86,6 +144,9 @@ function FormMeta({ inicial, onGuardar, onCancelar }) {
             className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
               campoErro === 'valor_atual' ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
             }`} />
+          {campoErro === 'valor_atual' && (
+            <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erro}</p>
+          )}
         </div>
       </div>
 
@@ -96,6 +157,9 @@ function FormMeta({ inicial, onGuardar, onCancelar }) {
           className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
             campoErro === 'data_alvo' ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
           }`} />
+        {campoErro === 'data_alvo' && (
+          <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erro}</p>
+        )}
       </div>
 
       <div>
@@ -134,7 +198,7 @@ function FormMeta({ inicial, onGuardar, onCancelar }) {
         />
       </div>
 
-      {erro && (
+      {erro && !['nome', 'valor_meta', 'valor_atual', 'data_alvo'].includes(campoErro) && (
         <div className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2.5 rounded-lg flex items-start gap-2">
           <span className="mt-0.5">⚠</span>
           <span>{erro}</span>

@@ -58,6 +58,68 @@ function Modal({ titulo, onClose, children }) {
   )
 }
 
+const REGEX_MATRICULA = /^(\d{2}-\d{2}-[A-Z]{2}|\d{2}-[A-Z]{2}-\d{2}|[A-Z]{2}-\d{2}-\d{2})$/i
+const COMBUSTIVEIS = ['Gasolina', 'Gasóleo', 'Elétrico', 'Híbrido', 'GPL', 'Outro']
+
+// Valida TODOS os campos do formulário, mesmo opcionais, e devolve um mapa { campo: mensagem }
+function validarFormulario(form) {
+  const erros = {}
+
+  if (!form.nome || !form.nome.trim()) {
+    erros.nome = 'O nome é obrigatório.'
+  }
+
+  if (form.marca && form.marca.trim().length > 0 && form.marca.trim().length < 2) {
+    erros.marca = 'Marca demasiado curta.'
+  }
+
+  if (form.modelo && form.modelo.trim().length > 0 && form.modelo.trim().length < 1) {
+    erros.modelo = 'Modelo inválido.'
+  }
+
+  if (form.matricula && form.matricula.trim() && !REGEX_MATRICULA.test(form.matricula.trim())) {
+    erros.matricula = 'Formato inválido. Usa 00-00-AA, 00-AA-00 ou AA-00-00.'
+  }
+
+  if (form.ano !== '' && form.ano !== null && form.ano !== undefined) {
+    const anoNum = parseInt(form.ano, 10)
+    const anoAtual = new Date().getFullYear()
+    if (isNaN(anoNum) || !Number.isInteger(Number(form.ano))) {
+      erros.ano = 'O ano deve ser um número válido.'
+    } else if (anoNum < 1900 || anoNum > anoAtual + 1) {
+      erros.ano = `O ano deve estar entre 1900 e ${anoAtual + 1}.`
+    }
+  }
+
+  if (form.combustivel && !COMBUSTIVEIS.includes(form.combustivel)) {
+    erros.combustivel = 'Tipo de combustível inválido.'
+  }
+
+  if (form.iuc_valor !== '' && form.iuc_valor !== null && form.iuc_valor !== undefined) {
+    const valorNum = parseFloat(form.iuc_valor)
+    if (isNaN(valorNum) || valorNum <= 0) {
+      erros.iuc_valor = 'O valor do IUC deve ser positivo.'
+    }
+  }
+
+  if (form.iuc_mes_vencimento !== '' && form.iuc_mes_vencimento !== null && form.iuc_mes_vencimento !== undefined) {
+    const mesNum = parseInt(form.iuc_mes_vencimento, 10)
+    if (isNaN(mesNum) || mesNum < 1 || mesNum > 12) {
+      erros.iuc_mes_vencimento = 'Mês inválido.'
+    }
+  }
+
+  if (form.seguro_vencimento && isNaN(new Date(form.seguro_vencimento).getTime())) {
+    erros.seguro_vencimento = 'Data inválida.'
+  }
+
+  if (form.inspecao_vencimento && isNaN(new Date(form.inspecao_vencimento).getTime())) {
+    erros.inspecao_vencimento = 'Data inválida.'
+  }
+
+  return erros
+}
+
 function FormVeiculo({ inicial, onGuardar, onCancelar }) {
   const [form, setForm] = useState(inicial || {
     nome: '', matricula: '', marca: '', modelo: '', ano: '',
@@ -65,27 +127,41 @@ function FormVeiculo({ inicial, onGuardar, onCancelar }) {
     seguro_vencimento: '', inspecao_vencimento: ''
   })
   const [loading, setLoading] = useState(false)
-  const [erro, setErro] = useState('')
-  const [campoErro, setCampoErro] = useState('')
+  const [erroGeral, setErroGeral] = useState('')
+  const [errosCampos, setErrosCampos] = useState({}) // { campo: mensagem }
 
   const MESES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez']
-  const COMBUSTIVEIS = ['Gasolina', 'Gasóleo', 'Elétrico', 'Híbrido', 'GPL', 'Outro']
 
   function atualizarCampo(campo, valor) {
     setForm({ ...form, [campo]: valor })
-    if (campoErro === campo) { setCampoErro(''); setErro('') }
+    if (errosCampos[campo]) {
+      setErrosCampos(prev => { const novo = { ...prev }; delete novo[campo]; return novo })
+    }
   }
 
   function classeInput(campo) {
     return `w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
-      campoErro === campo ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+      errosCampos[campo] ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
     }`
+  }
+
+  function ErroLabel({ campo }) {
+    if (!errosCampos[campo]) return null
+    return <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {errosCampos[campo]}</p>
   }
 
   async function handleSubmit(e) {
     e.preventDefault()
-    setErro('')
-    setCampoErro('')
+    setErroGeral('')
+
+    // ── Validação local de TODOS os campos antes de chamar a API ─────────────
+    const erros = validarFormulario(form)
+    if (Object.keys(erros).length > 0) {
+      setErrosCampos(erros)
+      return
+    }
+    setErrosCampos({})
+
     setLoading(true)
     try {
       if (inicial?.id) {
@@ -95,8 +171,13 @@ function FormVeiculo({ inicial, onGuardar, onCancelar }) {
       }
       onGuardar()
     } catch (err) {
-      setErro(err.response?.data?.erro || 'Erro ao guardar. Verifica os dados e tenta novamente.')
-      setCampoErro(err.response?.data?.campo || '')
+      const campo = err.response?.data?.campo
+      const msg   = err.response?.data?.erro || 'Erro ao guardar. Verifica os dados e tenta novamente.'
+      if (campo) {
+        setErrosCampos({ [campo]: msg })
+      } else {
+        setErroGeral(msg)
+      }
     } finally {
       setLoading(false)
     }
@@ -107,42 +188,38 @@ function FormVeiculo({ inicial, onGuardar, onCancelar }) {
       <div className="grid grid-cols-2 gap-3">
         <div className="col-span-2">
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Nome / Alcunha</label>
-          <input required placeholder="Ex: Renault Clio"
+          <input placeholder="Ex: Renault Clio"
             value={form.nome} onChange={e => atualizarCampo('nome', e.target.value)}
             className={classeInput('nome')} />
-          {campoErro === 'nome' && (
-            <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erro}</p>
-          )}
+          <ErroLabel campo="nome" />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Marca</label>
           <input placeholder="Ex: Renault"
             value={form.marca} onChange={e => atualizarCampo('marca', e.target.value)}
             className={classeInput('marca')} />
+          <ErroLabel campo="marca" />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Modelo</label>
           <input placeholder="Ex: Clio"
             value={form.modelo} onChange={e => atualizarCampo('modelo', e.target.value)}
             className={classeInput('modelo')} />
+          <ErroLabel campo="modelo" />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Matrícula</label>
           <input placeholder="Ex: 00-AA-00"
             value={form.matricula} onChange={e => atualizarCampo('matricula', e.target.value)}
             className={classeInput('matricula')} />
-          {campoErro === 'matricula' && (
-            <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erro}</p>
-          )}
+          <ErroLabel campo="matricula" />
         </div>
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Ano</label>
           <input type="number" placeholder="Ex: 2020"
             value={form.ano} onChange={e => atualizarCampo('ano', e.target.value)}
             className={classeInput('ano')} />
-          {campoErro === 'ano' && (
-            <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erro}</p>
-          )}
+          <ErroLabel campo="ano" />
         </div>
         <div className="col-span-2">
           <label className="block text-xs font-medium text-gray-600 mb-1.5">Combustível</label>
@@ -152,12 +229,15 @@ function FormVeiculo({ inicial, onGuardar, onCancelar }) {
                 className={`px-3 py-1.5 text-xs rounded-lg border transition ${
                   form.combustivel === c
                     ? 'bg-blue-50 text-blue-600 border-blue-200'
+                    : errosCampos.combustivel
+                    ? 'border-red-300 text-red-400'
                     : 'border-gray-200 text-gray-400 hover:border-gray-300'
                 }`}>
                 {c}
               </button>
             ))}
           </div>
+          <ErroLabel campo="combustivel" />
         </div>
       </div>
 
@@ -169,9 +249,7 @@ function FormVeiculo({ inicial, onGuardar, onCancelar }) {
             <input type="number" step="0.01" placeholder="0,00"
               value={form.iuc_valor} onChange={e => atualizarCampo('iuc_valor', e.target.value)}
               className={classeInput('iuc_valor')} />
-            {campoErro === 'iuc_valor' && (
-              <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erro}</p>
-            )}
+            <ErroLabel campo="iuc_valor" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">IUC — Mês vencimento</label>
@@ -181,26 +259,29 @@ function FormVeiculo({ inicial, onGuardar, onCancelar }) {
               <option value="">Selecionar</option>
               {MESES.map((m, i) => <option key={i} value={i + 1}>{m}</option>)}
             </select>
+            <ErroLabel campo="iuc_mes_vencimento" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">Seguro — Vencimento</label>
             <input type="date" value={form.seguro_vencimento}
               onChange={e => atualizarCampo('seguro_vencimento', e.target.value)}
               className={classeInput('seguro_vencimento')} />
+            <ErroLabel campo="seguro_vencimento" />
           </div>
           <div>
             <label className="block text-xs font-medium text-gray-600 mb-1.5">Inspeção — Vencimento</label>
             <input type="date" value={form.inspecao_vencimento}
               onChange={e => atualizarCampo('inspecao_vencimento', e.target.value)}
               className={classeInput('inspecao_vencimento')} />
+            <ErroLabel campo="inspecao_vencimento" />
           </div>
         </div>
       </div>
 
-      {erro && !['nome', 'matricula', 'ano', 'iuc_valor'].includes(campoErro) && (
+      {erroGeral && (
         <div className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2.5 rounded-lg flex items-start gap-2">
           <span className="mt-0.5">⚠</span>
-          <span>{erro}</span>
+          <span>{erroGeral}</span>
         </div>
       )}
 
