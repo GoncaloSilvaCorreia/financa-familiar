@@ -3,6 +3,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext'
 import Layout from './components/layout/Layout'
 import Login from './pages/Login'
 import Registo from './pages/Registo'
+import ConfirmarEmail from './pages/ConfirmarEmail'
 import Dashboard from './pages/Dashboard'
 import Transacoes from './pages/Transacoes'
 import Prazos from './pages/Prazos'
@@ -32,6 +33,7 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<RotaPublica><Login /></RotaPublica>} />
           <Route path="/registar" element={<RotaPublica><Registo /></RotaPublica>} />
+          <Route path="/confirmar-email/:token" element={<ConfirmarEmail />} />
           <Route path="/" element={<RotaProtegida><Layout /></RotaProtegida>}>
             <Route index element={<Dashboard />} />
             <Route path="transacoes" element={<Transacoes />} />

@@ -1,77 +1,121 @@
 import { useState } from 'react'
 import { Link } from 'react-router-dom'
-import { useAuth } from '../contexts/AuthContext'
 import api from '../utils/api'
 
 export default function Registo() {
-  const { login } = useAuth()
   const [form, setForm] = useState({ nome: '', email: '', password: '' })
-  const [erro, setErro] = useState('')
+  const [erros, setErros] = useState({})
   const [loading, setLoading] = useState(false)
+  const [contaCriada, setContaCriada] = useState(false)
+  const [mensagemSucesso, setMensagemSucesso] = useState('')
+
+  function atualizarCampo(campo, valor) {
+    setForm({ ...form, [campo]: valor })
+    if (erros[campo]) setErros(prev => ({ ...prev, [campo]: '' }))
+  }
 
   async function handleSubmit(e) {
     e.preventDefault()
-    setErro('')
+    setErros({})
     setLoading(true)
     try {
-      const res = await api.post('/auth/registar', form)
-      login(res.data.token, res.data.utilizador)
+      const { data } = await api.post('/auth/registar', form)
+      setMensagemSucesso(data.mensagem || data.aviso || 'Conta criada! Verifica o teu email.')
+      setContaCriada(true)
     } catch (err) {
-      setErro(err.response?.data?.erro || err.response?.data?.erros?.[0]?.msg || 'Erro ao criar conta.')
+      const campo = err.response?.data?.campo
+      const msg   = err.response?.data?.erro || 'Erro ao criar conta.'
+      if (campo) {
+        setErros({ [campo]: msg })
+      } else {
+        setErros({ geral: msg })
+      }
     } finally {
       setLoading(false)
     }
+  }
+
+  if (contaCriada) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="w-full max-w-sm">
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
+            <div className="text-4xl mb-3">📧</div>
+            <h1 className="text-lg font-semibold text-gray-900 mb-2">Verifica o teu email</h1>
+            <p className="text-sm text-gray-500 mb-6">{mensagemSucesso}</p>
+            <Link to="/login"
+              className="inline-block w-full py-2.5 border border-gray-200 text-gray-600 text-sm font-medium rounded-lg hover:bg-gray-50 transition-colors">
+              Voltar ao login
+            </Link>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="text-3xl mb-2">💼</div>
-          <h1 className="text-xl font-semibold text-gray-900">FinançaFamiliar</h1>
+          <div className="text-3xl mb-2">🏠</div>
+          <h1 className="text-xl font-semibold text-gray-900">Finança Familiar</h1>
           <p className="text-sm text-gray-500 mt-1">Cria a tua conta</p>
         </div>
 
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+          <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1.5">Nome</label>
+              <label className="block text-xs font-medium text-gray-600 mb-1.5">Nome completo</label>
               <input
-                type="text"
-                required
                 placeholder="O teu nome"
                 value={form.nome}
-                onChange={e => setForm({ ...form, nome: e.target.value })}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                onChange={e => atualizarCampo('nome', e.target.value)}
+                className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
+                  erros.nome ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+                }`}
               />
+              {erros.nome && (
+                <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erros.nome}</p>
+              )}
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">Email</label>
               <input
                 type="email"
-                required
                 placeholder="exemplo@email.com"
                 value={form.email}
-                onChange={e => setForm({ ...form, email: e.target.value })}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                onChange={e => atualizarCampo('email', e.target.value)}
+                className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
+                  erros.email ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+                }`}
               />
+              {erros.email && (
+                <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erros.email}</p>
+              )}
             </div>
 
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1.5">Password</label>
               <input
                 type="password"
-                required
                 placeholder="Mínimo 6 caracteres"
                 value={form.password}
-                onChange={e => setForm({ ...form, password: e.target.value })}
-                className="w-full px-3 py-2.5 text-sm border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition"
+                onChange={e => atualizarCampo('password', e.target.value)}
+                className={`w-full px-3 py-2.5 text-sm border rounded-lg focus:outline-none focus:ring-2 focus:border-transparent transition ${
+                  erros.password ? 'border-red-300 focus:ring-red-400 bg-red-50' : 'border-gray-200 focus:ring-blue-500'
+                }`}
               />
+              {erros.password && (
+                <p className="mt-1.5 text-xs text-red-500 flex items-center gap-1"><span>⚠</span> {erros.password}</p>
+              )}
             </div>
 
-            {erro && (
-              <div className="text-xs text-red-500 bg-red-50 px-3 py-2 rounded-lg">{erro}</div>
+            {erros.geral && (
+              <div className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2.5 rounded-lg flex items-start gap-2">
+                <span className="mt-0.5">⚠</span>
+                <span>{erros.geral}</span>
+              </div>
             )}
 
             <button

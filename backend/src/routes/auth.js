@@ -1,9 +1,11 @@
 const express = require('express');
 const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
+const crypto = require('crypto');
 const { body, validationResult } = require('express-validator');
 const db = require('../db');
 const autenticar = require('../middleware/autenticar');
+const { enviarEmailConfirmacao, enviarEmailBoasVindas } = require('../utils/email');
 
 const router = express.Router();
 
@@ -17,25 +19,22 @@ router.post('/registar',
   async (req, res) => {
     const erros = validationResult(req);
     if (!erros.isEmpty()) {
-      return res.status(400).json({ erros: erros.array() });
+      return res.status(400).json({ erro: erros.array()[0].msg, campo: erros.array()[0].path });
     }
 
     const { nome, email, password } = req.body;
 
     try {
-      // Verifica se o email já existe
       const { rows } = await db.query(
         'SELECT id FROM utilizadores WHERE email = $1',
         [email]
       );
       if (rows.length > 0) {
-        return res.status(409).json({ erro: 'Este email já está registado.' });
+        return res.status(409).json({ erro: 'Este email já está registado.', campo: 'email' });
       }
 
-      // Hash da password
       const passwordHash = await bcrypt.hash(password, 12);
 
-      // Iniciais para o avatar (ex: "João Ferreira" → "JF")
       const iniciais = nome
         .split(' ')
         .filter(Boolean)
@@ -43,15 +42,15 @@ router.post('/registar',
         .map(p => p[0].toUpperCase())
         .join('');
 
-      // Cria utilizador
+      const tokenConfirmacao = crypto.randomBytes(32).toString('hex');
+
       const { rows: [utilizador] } = await db.query(
-        `INSERT INTO utilizadores (nome, email, password_hash, avatar_iniciais)
-         VALUES ($1, $2, $3, $4)
+        `INSERT INTO utilizadores (nome, email, password_hash, avatar_iniciais, email_confirmado, token_confirmacao)
+         VALUES ($1, $2, $3, $4, false, $5)
          RETURNING id, nome, email, avatar_iniciais, criado_em`,
-        [nome, email, passwordHash, iniciais]
+        [nome, email, passwordHash, iniciais, tokenConfirmacao]
       );
 
-      // Cria agregado automaticamente
       const { rows: [agregado] } = await db.query(
         `INSERT INTO agregados (nome) VALUES ($1) RETURNING id`,
         [`Agregado de ${nome.split(' ')[0]}`]
@@ -61,17 +60,108 @@ router.post('/registar',
         [agregado.id, utilizador.id]
       );
 
-      // Cria categorias padrão para o novo utilizador
       await criarCategoriasPadrao(utilizador.id, agregado.id);
 
-      // Gera token
-      const token = gerarToken(utilizador);
+      // ── Envia email de confirmação. Se falhar, a conta continua criada, ─────
+      // ── mas avisamos o utilizador para tentar reenviar mais tarde. ──────────
+      try {
+        await enviarEmailConfirmacao(email, nome, tokenConfirmacao);
+      } catch (emailErr) {
+        console.error('Falha ao enviar email de confirmação:', emailErr);
+        return res.status(201).json({
+          utilizador,
+          aviso: 'Conta criada, mas não foi possível enviar o email de confirmação. Tenta reenviar mais tarde.'
+        });
+      }
 
-      res.status(201).json({ token, utilizador });
+      res.status(201).json({
+        utilizador,
+        mensagem: 'Conta criada! Verifica o teu email para confirmar a conta antes de entrares.'
+      });
 
     } catch (err) {
       console.error('Erro no registo:', err);
-      res.status(500).json({ erro: 'Erro ao criar conta.' });
+      res.status(500).json({ erro: 'Erro ao criar conta. Tenta novamente.' });
+    }
+  }
+);
+
+// ─── Confirmar email ──────────────────────────────────────────────────────────
+router.get('/confirmar/:token', async (req, res) => {
+  const { token } = req.params;
+
+  try {
+    const { rows } = await db.query(
+      `SELECT id, nome, email, email_confirmado FROM utilizadores WHERE token_confirmacao = $1`,
+      [token]
+    );
+
+    if (rows.length === 0) {
+      return res.status(400).json({ erro: 'Link de confirmação inválido ou já utilizado.' });
+    }
+
+    const utilizador = rows[0];
+
+    if (utilizador.email_confirmado) {
+      return res.json({ mensagem: 'Email já confirmado anteriormente. Podes fazer login.', jaConfirmado: true });
+    }
+
+    await db.query(
+      `UPDATE utilizadores SET email_confirmado = true, token_confirmacao = NULL, atualizado_em = NOW() WHERE id = $1`,
+      [utilizador.id]
+    );
+
+    // Envia boas-vindas — não bloqueia a resposta se falhar
+    enviarEmailBoasVindas(utilizador.email, utilizador.nome).catch(() => {});
+
+    res.json({ mensagem: 'Email confirmado com sucesso! Já podes fazer login.' });
+
+  } catch (err) {
+    console.error('Erro ao confirmar email:', err);
+    res.status(500).json({ erro: 'Erro ao confirmar email. Tenta novamente.' });
+  }
+});
+
+// ─── Reenviar email de confirmação ────────────────────────────────────────────
+router.post('/reenviar-confirmacao',
+  [body('email').isEmail().normalizeEmail().withMessage('Email inválido')],
+  async (req, res) => {
+    const erros = validationResult(req);
+    if (!erros.isEmpty()) {
+      return res.status(400).json({ erro: erros.array()[0].msg });
+    }
+
+    const { email } = req.body;
+
+    try {
+      const { rows } = await db.query(
+        'SELECT id, nome, email_confirmado, token_confirmacao FROM utilizadores WHERE email = $1',
+        [email]
+      );
+
+      if (rows.length === 0) {
+        return res.status(404).json({ erro: 'Este email não está registado.' });
+      }
+
+      const utilizador = rows[0];
+
+      if (utilizador.email_confirmado) {
+        return res.status(400).json({ erro: 'Esta conta já está confirmada. Podes fazer login.' });
+      }
+
+      let token = utilizador.token_confirmacao;
+      if (!token) {
+        token = crypto.randomBytes(32).toString('hex');
+        await db.query('UPDATE utilizadores SET token_confirmacao = $1 WHERE id = $2', [token, utilizador.id]);
+      }
+
+      await enviarEmailConfirmacao(email, utilizador.nome, token);
+
+      res.json({ mensagem: 'Email de confirmação reenviado. Verifica a tua caixa de entrada.' });
+
+    } catch (err) {
+      console.error('Erro ao reenviar confirmação:', err);
+      res.status(500).json({ erro: 'Erro ao reenviar email. Tenta novamente.' });
     }
   }
 );
@@ -85,45 +175,46 @@ router.post('/login',
   async (req, res) => {
     const erros = validationResult(req);
     if (!erros.isEmpty()) {
-      return res.status(400).json({ erros: erros.array() });
+      return res.status(400).json({ erro: erros.array()[0].msg, campo: erros.array()[0].path });
     }
 
     const { email, password } = req.body;
 
     try {
       const { rows } = await db.query(
-        `SELECT id, nome, email, password_hash, avatar_iniciais
+        `SELECT id, nome, email, password_hash, avatar_iniciais, email_confirmado
          FROM utilizadores WHERE email = $1`,
         [email]
       );
 
       if (rows.length === 0) {
-        // Email não existe — diz-nos qual o campo para o frontend destacar
-        return res.status(401).json({
-          erro: 'Este email não está registado.',
-          campo: 'email'
-        });
+        return res.status(401).json({ erro: 'Este email não está registado.', campo: 'email' });
       }
 
       const utilizador = rows[0];
       const passwordCorreta = await bcrypt.compare(password, utilizador.password_hash);
 
       if (!passwordCorreta) {
-        // Password errada — campo específico
-        return res.status(401).json({
-          erro: 'Password incorreta.',
-          campo: 'password'
+        return res.status(401).json({ erro: 'Password incorreta.', campo: 'password' });
+      }
+
+      // ── Bloqueia login se o email ainda não foi confirmado ───────────────────
+      if (!utilizador.email_confirmado) {
+        return res.status(403).json({
+          erro: 'Tens de confirmar o teu email antes de entrares. Verifica a tua caixa de entrada.',
+          campo: 'email_nao_confirmado'
         });
       }
 
       const token = gerarToken(utilizador);
+
       delete utilizador.password_hash;
 
       res.json({ token, utilizador });
 
     } catch (err) {
       console.error('Erro no login:', err);
-      res.status(500).json({ erro: 'Erro ao fazer login.' });
+      res.status(500).json({ erro: 'Erro ao fazer login. Tenta novamente.' });
     }
   }
 );

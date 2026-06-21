@@ -8,10 +8,15 @@ export default function Login() {
   const [form, setForm] = useState({ email: '', password: '' })
   const [erros, setErros] = useState({})
   const [loading, setLoading] = useState(false)
+  const [emailNaoConfirmado, setEmailNaoConfirmado] = useState(false)
+  const [reenviando, setReenviando] = useState(false)
+  const [mensagemReenvio, setMensagemReenvio] = useState('')
 
   async function handleSubmit(e) {
     e.preventDefault()
     setErros({})
+    setEmailNaoConfirmado(false)
+    setMensagemReenvio('')
     setLoading(true)
     try {
       const res = await api.post('/auth/login', form)
@@ -19,7 +24,11 @@ export default function Login() {
     } catch (err) {
       const campo = err.response?.data?.campo
       const msg   = err.response?.data?.erro || 'Erro ao fazer login.'
-      if (campo === 'email') {
+
+      if (campo === 'email_nao_confirmado') {
+        setEmailNaoConfirmado(true)
+        setErros({ geral: msg })
+      } else if (campo === 'email') {
         setErros({ email: msg })
       } else if (campo === 'password') {
         setErros({ password: msg })
@@ -31,11 +40,24 @@ export default function Login() {
     }
   }
 
+  async function handleReenviar() {
+    setReenviando(true)
+    setMensagemReenvio('')
+    try {
+      const { data } = await api.post('/auth/reenviar-confirmacao', { email: form.email })
+      setMensagemReenvio(data.mensagem)
+    } catch (err) {
+      setMensagemReenvio(err.response?.data?.erro || 'Erro ao reenviar email.')
+    } finally {
+      setReenviando(false)
+    }
+  }
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="text-3xl mb-2"></div>
+          <div className="text-3xl mb-2">🏠</div>
           <h1 className="text-xl font-semibold text-gray-900">Finança Familiar</h1>
           <p className="text-sm text-gray-500 mt-1">Entra na tua conta</p>
         </div>
@@ -89,8 +111,25 @@ export default function Login() {
             </div>
 
             {erros.geral && (
-              <div className="text-xs text-red-500 bg-red-50 border border-red-100 px-3 py-2 rounded-lg">
-                {erros.geral}
+              <div className="text-xs text-red-600 bg-red-50 border border-red-100 px-3 py-2.5 rounded-lg flex items-start gap-2">
+                <span className="mt-0.5">⚠</span>
+                <span>{erros.geral}</span>
+              </div>
+            )}
+
+            {emailNaoConfirmado && (
+              <div className="flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={handleReenviar}
+                  disabled={reenviando}
+                  className="text-xs text-blue-600 hover:text-blue-700 font-medium text-left disabled:opacity-50"
+                >
+                  {reenviando ? 'A reenviar...' : 'Reenviar email de confirmação'}
+                </button>
+                {mensagemReenvio && (
+                  <p className="text-xs text-gray-500">{mensagemReenvio}</p>
+                )}
               </div>
             )}
 
