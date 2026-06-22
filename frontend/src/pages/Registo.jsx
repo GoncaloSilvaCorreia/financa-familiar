@@ -40,7 +40,6 @@ export default function Registo() {
       <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
         <div className="w-full max-w-sm">
           <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8 text-center">
-            <div className="text-4xl mb-3">📧</div>
             <h1 className="text-lg font-semibold text-gray-900 mb-2">Verifica o teu email</h1>
             <p className="text-sm text-gray-500 mb-6">{mensagemSucesso}</p>
             <Link to="/login"
@@ -57,7 +56,7 @@ export default function Registo() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="text-3xl mb-2">🏠</div>
+          <div className="text-3xl mb-2"></div>
           <h1 className="text-xl font-semibold text-gray-900">Finança Familiar</h1>
           <p className="text-sm text-gray-500 mt-1">Cria a tua conta</p>
         </div>

@@ -373,7 +373,7 @@ export default function Transacoes() {
           </div>
         ) : transacoes.length === 0 ? (
           <div className="text-center py-16 text-sm text-gray-300">
-            <div className="text-4xl mb-3">💸</div>
+            <div className="text-4xl mb-3"></div>
             Sem transações neste período
           </div>
         ) : (
