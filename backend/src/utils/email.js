@@ -20,7 +20,7 @@ async function enviarEmailConfirmacao(destinatario, nome, token) {
       html: `
         <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
           <div style="text-align: center; margin-bottom: 24px;">
-            <span style="font-size: 32px;">🏠</span>
+            <span style="font-size: 32px;"></span>
             <h1 style="font-size: 18px; color: #111827; margin: 8px 0 0;">Finança Familiar</h1>
           </div>
           <p style="color: #374151; font-size: 14px; line-height: 1.6;">
@@ -57,11 +57,11 @@ async function enviarEmailBoasVindas(destinatario, nome) {
     await resend.emails.send({
       from: REMETENTE,
       to: destinatario,
-      subject: 'Bem-vindo à Finança Familiar! 🎉',
+      subject: 'Bem-vindo à Finança Familiar! ',
       html: `
         <div style="font-family: -apple-system, sans-serif; max-width: 480px; margin: 0 auto; padding: 32px 24px;">
           <div style="text-align: center; margin-bottom: 24px;">
-            <span style="font-size: 32px;">🎉</span>
+            <span style="font-size: 32px;"></span>
             <h1 style="font-size: 18px; color: #111827; margin: 8px 0 0;">Bem-vindo, ${nome.split(' ')[0]}!</h1>
           </div>
           <p style="color: #374151; font-size: 14px; line-height: 1.6;">
